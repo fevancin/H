@@ -1,0 +1,56 @@
+include_info_in_instances: false
+include_info_in_group_directory: true
+
+groups:
+- seed: 42
+  instance_number: 5
+  instance_group_directory_name: "test"
+
+  day:
+    strategy: "all_same"
+    # day_strategy: "all_random"
+    # day_strategy: "repeat_week"
+
+    # week_size: 5
+    number: 30
+    care_unit_number: 4
+    operators_per_care_unit: 2
+
+  operator:
+    strategy: "fill"
+    # strategy: "random"
+    # strategy: "overlap"
+
+    time_slots: 8
+    # duration: 16
+    # overlap_percentage: 1.0
+
+  service:
+    strategy: "pool"
+    # strategy: "all_different"
+
+    # care_unit_strategy: "random"
+    care_unit_strategy: "balanced"
+
+    pool_size: 20
+    duration: {min: 1, max: 6}
+  
+  patient:
+    number: 30
+    use_priority: true
+    priority: {min: 1, max: 1}
+    protocols_per_patient: 2
+  
+  protocol:
+    # strategy: "pool"
+    strategy: "all_different"
+
+    services_per_protocol: 4
+    # pool_size: 10
+    initial_shift_spread_percentage: 0.0
+
+    service:
+      start_spread_percentage: 0.25
+      tolerance: {min: 0, max: 3}
+      frequency: {min: 1, average: 6, standard_deviation: 3.0, max: 10}
+      times: {min: 1, max: 6}
