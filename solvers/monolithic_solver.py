@@ -1,9 +1,9 @@
 import pyomo.environ as pyo
 
-from tools import clamp, common_main_solver
+from solvers.tools import clamp, common_main_solver
 
 
-def get_monolitic_model(instance, additional_info):
+def get_monolithic_model(instance, additional_info):
 
     max_day_number = max([int(d) for d in instance['days'].keys()])
 
@@ -414,7 +414,7 @@ def get_monolitic_model(instance, additional_info):
     return model
 
 
-def get_results_from_monolitic_model(model, additional_info):
+def get_results_from_monolithic_model(model, additional_info):
 
     scheduled_requests_grouped_per_day = {}
     for p, s, d, c, o in model.do_index:
@@ -462,6 +462,6 @@ def get_results_from_monolitic_model(model, additional_info):
 if __name__ == '__main__':
 
     common_main_solver(
-        command_name='Monolitic solver',
-        create_model_function=get_monolitic_model,
-        get_results_function=get_results_from_monolitic_model)
+        command_name='Monolithic solver',
+        create_model_function=get_monolithic_model,
+        get_results_function=get_results_from_monolithic_model)

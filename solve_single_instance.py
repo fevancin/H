@@ -234,10 +234,10 @@ def main(group_directory_path, config, config_file_path):
         yaml.dump(config, file, default_flow_style=False, sort_keys=False)
 
     if config['analyze_master_instance']:
-        master_instance_analysis_data = analyze_master_instance(master_instance, master_instance_file_path)
+        master_instance_analysis = analyze_master_instance(master_instance, master_instance_file_path)
         master_instance_analysis_file_path = analysis_directory_path.joinpath('master_instance_analysis.json')
         with open(master_instance_analysis_file_path, 'w') as file:
-            json.dump(master_instance_analysis_data, file, indent=4)
+            json.dump(master_instance_analysis, file, indent=4)
 
     print(f'Solving instance \'{master_instance_file_path}\' with configuration from \'{config_file_path}\'')
     total_start_time = time.perf_counter()
