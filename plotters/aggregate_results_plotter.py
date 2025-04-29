@@ -202,3 +202,124 @@ def plot_all_instances_iteration_times(groups_directory_path, plot_file_path):
     plt.tight_layout()
     plt.savefig(groups_directory_path.joinpath(plot_file_path))
     plt.close('all')
+
+
+def plot_results_values_by_group(groups_directory_path, plot_file_path):
+
+    group_paths = []
+    for group_directory_path in groups_directory_path.iterdir():
+        if not group_directory_path.is_dir():
+            continue
+        group_paths.append(group_directory_path)
+    group_paths.sort()
+
+    data = {}
+    for group_path in group_paths:
+
+        data[group_path.name] = {}
+        
+        analysis_directory_path = group_path.joinpath('analysis')
+        for iteration_analysis_directory_path in analysis_directory_path.iterdir():
+
+            if not iteration_analysis_directory_path.is_dir():
+                continue
+        
+            iteration_index = int(iteration_analysis_directory_path.name.removeprefix('iter_'))
+        
+            analysis_file_path = iteration_analysis_directory_path.joinpath('final_results_analysis.json')
+            with open(analysis_file_path, 'r') as file:
+                analysis = json.load(file)
+            data[group_path.name][iteration_index] = analysis['solution_value']
+
+    colors = 'bgrcmyk'
+    fig, ax = plt.subplots()
+    fig.set_size_inches(10, 8)
+
+    color_map = {}
+
+    for group_path in group_paths:
+        group_name = group_path.name
+        solution_values = data[group_name]
+        
+        
+        xs = list(range(len(solution_values)))
+        ys = [0 for _ in range(len(solution_values))]
+        for iteration_index, solution_value in solution_values.items():
+            ys[iteration_index] = solution_value
+
+        group_prefix = group_name.split('_instance')[0]
+        if group_prefix in color_map:
+            ax.plot(xs, ys, color=color_map[group_prefix], alpha=0.75)
+        else:
+            color_map[group_prefix] = colors[len(color_map) % len(colors)]
+            ax.plot(xs, ys, color=color_map[group_prefix], alpha=0.75, label=group_prefix)
+
+    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+
+    plt.title(f'Results values by iteration')
+    plt.xlabel('Iteration')
+    plt.ylabel('Solution value')
+
+    plt.tight_layout()
+    plt.savefig(groups_directory_path.joinpath(plot_file_path))
+    plt.close('all')
+
+
+def plot_results_values_by_instance(groups_directory_path, plot_file_path):
+
+    group_paths = []
+    for group_directory_path in groups_directory_path.iterdir():
+        if not group_directory_path.is_dir():
+            continue
+        group_paths.append(group_directory_path)
+    group_paths.sort()
+
+    data = {}
+    for group_path in group_paths:
+
+        data[group_path.name] = {}
+        
+        analysis_directory_path = group_path.joinpath('analysis')
+        for iteration_analysis_directory_path in analysis_directory_path.iterdir():
+
+            if not iteration_analysis_directory_path.is_dir():
+                continue
+        
+            iteration_index = int(iteration_analysis_directory_path.name.removeprefix('iter_'))
+        
+            analysis_file_path = iteration_analysis_directory_path.joinpath('final_results_analysis.json')
+            with open(analysis_file_path, 'r') as file:
+                analysis = json.load(file)
+            data[group_path.name][iteration_index] = analysis['solution_value']
+
+    colors = 'bgrcmyk'
+    fig, ax = plt.subplots()
+    fig.set_size_inches(10, 8)
+
+    color_map = {}
+
+    for group_path in group_paths:
+        group_name = group_path.name
+        solution_values = data[group_name]
+        
+        xs = list(range(len(solution_values)))
+        ys = [0 for _ in range(len(solution_values))]
+        for iteration_index, solution_value in solution_values.items():
+            ys[iteration_index] = solution_value
+
+        instance_name = f'instance_{group_name.split('instance_')[1]}'
+        if instance_name in color_map:
+            ax.plot(xs, ys, color=color_map[instance_name], alpha=0.75)
+        else:
+            color_map[instance_name] = colors[len(color_map) % len(colors)]
+            ax.plot(xs, ys, color=color_map[instance_name], alpha=0.75, label=instance_name)
+
+    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+
+    plt.title(f'Results values by iteration')
+    plt.xlabel('Iteration')
+    plt.ylabel('Solution value')
+
+    plt.tight_layout()
+    plt.savefig(groups_directory_path.joinpath(plot_file_path))
+    plt.close('all')

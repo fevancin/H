@@ -8,6 +8,8 @@ from analyzers.master_results_analyzer import analyze_master_results
 from analyzers.final_results_analyzer import analyze_final_results
 
 from plotters.aggregate_results_plotter import plot_all_instances_iteration_times
+from plotters.aggregate_results_plotter import plot_results_values_by_group
+from plotters.aggregate_results_plotter import plot_results_values_by_instance
 from plotters.aggregate_results_plotter import plot_subproblem_cumulative_times
 from plotters.aggregate_results_plotter import plot_scatter_times
 from plotters.aggregate_results_plotter import plot_cores
@@ -104,6 +106,9 @@ elif not groups_directory_path.is_dir():
     raise ValueError(f'Groups \'{groups_directory_path}\' is not a directory')
 
 plot_all_instances_iteration_times(groups_directory_path, 'instance_times.png')
+
+plot_results_values_by_group(groups_directory_path, 'results_values_groups.png')
+plot_results_values_by_instance(groups_directory_path, 'results_values_instances.png')
 
 for group_directory_path in groups_directory_path.iterdir():
 
