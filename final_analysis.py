@@ -161,9 +161,9 @@ for group_directory_path in groups_directory_path.iterdir():
 
     master_instance_analysis_file_path = analysis_directory_path.joinpath('master_instance_analysis.json')
     if not master_instance_analysis_file_path.exists():
-        master_instance_analysis_data = analyze_master_instance(master_instance, master_instance_file_path)
+        master_instance_analysis = analyze_master_instance(master_instance, master_instance_file_path)
         with open(master_instance_analysis_file_path, 'w') as file:
-            json.dump(master_instance_analysis_data, file, indent=4)
+            json.dump(master_instance_analysis, file, indent=4)
 
     master_results_analysis_rows = []
     final_results_analysis_rows = []
