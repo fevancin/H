@@ -370,3 +370,37 @@ def plot_iteration_times_by_day(all_subproblem_results_info, plot_file_path):
     plt.tight_layout()
     plt.savefig(plot_file_path)
     plt.close('all')
+
+
+def plot_free_slots(master_instance, all_final_results, plot_file_path):
+
+    total_available_slots = 0
+    for day_name, day in master_instance['days'].items():
+        for care_unit_name, care_unit in day.items():
+            for operator in care_unit.values():
+                total_available_slots += operator['duration']
+    
+    xs = []
+    ys = []
+    
+    for iteration_index, final_results in all_final_results.items():
+        
+        scheduled_slots = 0
+        for daily_schedule in final_results['scheduled'].values():
+            for schedule in daily_schedule:
+                scheduled_slots += master_instance['services'][schedule['service']]['duration']
+        
+        xs.append(iteration_index)
+        ys.append(total_available_slots - scheduled_slots)
+    
+    _, ax = plt.subplots()
+
+    ax.plot(xs, ys, '.')
+
+    plt.title(f'Free slots by iteration')
+    plt.xlabel('Iteration')
+    plt.ylabel('Slots')
+
+    plt.tight_layout()
+    plt.savefig(plot_file_path)
+    plt.close('all')

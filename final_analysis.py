@@ -15,6 +15,7 @@ from plotters.aggregate_results_plotter import plot_scatter_times
 from plotters.aggregate_results_plotter import plot_cores
 
 from plotters.aggregate_results_plotter import plot_iteration_times_by_day
+from plotters.aggregate_results_plotter import plot_free_slots
 
 
 def get_all_master_results_info(results_directory_path):
@@ -166,6 +167,24 @@ for group_directory_path in groups_directory_path.iterdir():
 
     with open(master_instance_file_path, 'r') as file:
         master_instance = json.load(file)
+    
+    plot_file_path = plot_directory_path.joinpath('free_time_slots.png')
+    
+    all_final_results = {}
+    results_directory_path = group_directory_path.joinpath('results')
+    
+    for iteration_results_path in results_directory_path.iterdir():
+    
+        if not iteration_results_path.is_dir():
+            continue
+    
+        iteration_index = int(iteration_results_path.name.removeprefix('iter_'))
+        final_results_file_path = iteration_results_path.joinpath('final_results.json')
+    
+        with open(final_results_file_path, 'r') as file:
+            all_final_results[iteration_index] = json.load(file)
+    
+    plot_free_slots(master_instance, all_final_results, plot_file_path)
 
     analysis_directory_path = group_directory_path.joinpath('analysis')
     analysis_directory_path.mkdir(exist_ok=True)
