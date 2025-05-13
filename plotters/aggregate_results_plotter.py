@@ -110,7 +110,10 @@ def plot_cores(cores_directory_path, plot_file_path):
         cores_size_sum = 0
         for core in cores:
             cores_size_sum += len(core['components'])
-        cores_average_size.append(cores_size_sum / len(cores))
+        if len(cores) == 0:
+            cores_average_size.append(0.0)
+        else:
+            cores_average_size.append(cores_size_sum / len(cores))
 
         iteration_index += 1
         iteration_cores_directory_path = cores_directory_path.joinpath(f'iter_{iteration_index}')
@@ -173,7 +176,7 @@ def plot_all_instances_iteration_times(groups_directory_path, plot_file_path):
     max_time = 0
     group_index = 0
     group_names = []
-    for group_name, group_data in data.items():    
+    for group_name, group_data in data.items():
         group_index += 1
         group_names.append(group_name)
 
@@ -322,4 +325,48 @@ def plot_results_values_by_instance(groups_directory_path, plot_file_path):
 
     plt.tight_layout()
     plt.savefig(groups_directory_path.joinpath(plot_file_path))
+    plt.close('all')
+
+
+def plot_iteration_times_by_day(all_subproblem_results_info, plot_file_path):
+
+    colors = 'bgrcmyk'
+    _, ax = plt.subplots()
+
+    column_width = 1
+    column_space_between = 0.5
+
+    max_time = 0
+    max_day_index = 0
+    day_names = []
+    for day_name in all_subproblem_results_info[0].keys():
+        
+        day_index = int(day_name)
+        if day_index > max_day_index:
+            max_day_index = day_index
+        day_names.append(day_index)
+
+        cumulate_time = 0
+        for iteration_index in range(len(all_subproblem_results_info)):
+            iteration_time = all_subproblem_results_info[iteration_index][day_name]['model_solving_time']
+            ax.add_patch(patches.Rectangle(
+                (day_index * column_space_between + (day_index - 1) * column_width, cumulate_time),
+                column_width, iteration_time, facecolor=colors[iteration_index % len(colors)]))
+            cumulate_time += iteration_time
+        
+        if cumulate_time > max_time:
+            max_time = cumulate_time
+
+    ax.set_xlim([0, (max_day_index + 1) * (column_width + column_space_between) + column_space_between])
+    ax.set_ylim([0, max_time * 1.1])
+
+    ax.set_xticks([i * column_space_between + (i - 0.5) * column_width for i in range(1, max_day_index + 2)], labels=day_names)
+    plt.xticks(rotation=90)
+
+    plt.title(f'Solving time by day')
+    plt.xlabel('Days')
+    plt.ylabel('Time (s)')
+
+    plt.tight_layout()
+    plt.savefig(plot_file_path)
     plt.close('all')
