@@ -145,11 +145,11 @@ for config in configs:
             model_creation_start_time = time.perf_counter()
 
             if config['mode'] == 'monolithic':
-                model = get_monolithic_model(instance, config['solver_config'])
+                model = get_monolithic_model(instance, config['solver_config']['additional_info'])
             elif config['mode'] == 'master':
-                model = get_master_model(instance, config['solver_config'])
+                model = get_master_model(instance, config['solver_config']['additional_info'])
             elif config['mode'] == 'subproblem':
-                model = get_subproblem_model(instance, config['solver_config'])
+                model = get_subproblem_model(instance, config['solver_config']['additional_info'])
 
             model_creation_end_time = time.perf_counter()
             if config['print_time_taken_by_model_creation']:

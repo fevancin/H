@@ -285,27 +285,26 @@ def add_optimization_to_master_model(model, instance):
                 elif start_time != operator['start']:
                     return
 
-    # optimization_index are on the form (patient, care_unit, day)
+    # optimization_index are on the form (patient, day)
     optimization_index = set()
     for patient_name, service_name, day_name in model.do_index:
-        care_unit_name = instance['services'][service_name]['care_unit']
-        optimization_index.add((patient_name, care_unit_name, int(day_name)))
+        optimization_index.add((patient_name, int(day_name)))
     model.optimization_index = pyo.Set(initialize=sorted(optimization_index))
     
     # max_duration[d, c] is the maximum operator duration
-    @model.Param(model.care_units, domain=pyo.NonNegativeIntegers, mutable=False)
-    def max_duration(model, d, c):
-        return max([o['duration'] for o in instance['days'][str(d)][c].values()])
+    @model.Param(model.days, domain=pyo.NonNegativeIntegers, mutable=False)
+    def max_duration(model, d):
+        return max([o['duration'] for c in instance['days'][str(d)].keys() for o in instance['days'][str(d)][c].values()])
 
     # it is impossible for a single patient to do services of a specific care unit
     # with a total duration greater than the longest operator duration of that care unit.
     # This constraint is only valid if every care unit has all its operators that start at the same time.
     @model.Constraint(model.optimization_index)
-    def redundant_patient_total_duration(model, p, c, d):
-        return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d and model.service_care_unit[s] == c]) <= model.max_duration[d, c]
+    def redundant_patient_total_duration(model, p, d):
+        return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
 
 
-def get_results_from_master_model(model, additional_info):
+def get_results_from_master_model(model, config):
 
     scheduled_requests_grouped_per_day = {}
     for p, s, d in model.do_index:

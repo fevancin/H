@@ -255,7 +255,7 @@ def main(group_directory_path, config, config_file_path):
         print(f'Start master model creation')
     master_model_creation_start_time = time.perf_counter()
 
-    master_model = get_master_model(master_instance, config['master_config'])
+    master_model = get_master_model(master_instance, config['master_config']['additional_info'])
 
     if config['use_cores']:
         add_cores_constraint_class_to_master_model(master_model)
