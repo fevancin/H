@@ -133,11 +133,18 @@ def compute_reduced_cores(all_subproblem_results, master_instance):
                     patients_done.add(patient_to_do)
 
             # remove duplicates from the core
-            # for patient_name, services in core_components.items():
-            #     core_components[patient_name] = list(set(services))
+            unique_components = []
+            for component in core_components:
+                is_new = True
+                for unique_component in unique_components:
+                    if unique_component['patient'] == component['patient'] and unique_component['service'] == component['service']:
+                        is_new = False
+                        break
+                if is_new:
+                    unique_components.append(component)
 
             cores.append({
-                'components': core_components,
+                'components': unique_components,
                 'days': [day_name]
             })
 
