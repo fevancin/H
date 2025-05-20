@@ -1,9 +1,0 @@
-additional_info:
-- "use_patient_priority"
-- "use_redundant_patient_cut"
-- "use_redundant_operator_cut"
-
-solver: "gurobi"
-time_limit: 3600
-max_memory: 8
-keep_logs: true
