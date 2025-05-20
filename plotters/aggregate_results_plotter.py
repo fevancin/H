@@ -29,6 +29,7 @@ def plot_subproblem_cumulative_times(all_master_results_info, all_subproblem_res
         ysub.append(objective_function_value_sum)
 
     _, ax = plt.subplots()
+    
     ax.plot(xmas, ymas, 'o-')
     if len(xsub) > 0:
         ax.plot(xsub, ysub, 'x-')

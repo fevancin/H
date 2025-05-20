@@ -23,9 +23,8 @@ from solvers.monolithic_solver import get_monolithic_model, get_results_from_mon
 from solvers.master_solver import get_master_model, get_results_from_master_model
 from solvers.subproblem_solver import get_subproblem_model, get_results_from_subproblem_model
 
-from plotters.master_results_plotter import plot_master_results
-from plotters.subproblem_results_plotter import plot_subproblem_results
-from plotters.final_results_plotter import plot_final_results
+from plotters.tools import plot_master_results
+from plotters.tools import plot_subproblem_results
 
 
 if __name__ != '__main__':
@@ -247,7 +246,7 @@ for config in configs:
             if config['plot_results']:
                 plot_file_name = plots_directory_path.joinpath(f'{instance_file_path.stem}_results_plot.png')
                 if config['mode'] == 'monolithic':
-                    plot_final_results(instance, results, plot_file_name)
+                    plot_master_results(instance, results, plot_file_name)
                 elif config['mode'] == 'master':
                     plot_master_results(instance, results, plot_file_name)
                 elif config['mode'] == 'subproblem':

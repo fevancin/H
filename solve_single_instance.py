@@ -21,9 +21,8 @@ from cores.compute_cores import add_cores_constraint_class_to_master_model, add_
 from cores.expand_core_days import compute_expanded_days, expand_core_days, remove_core_days_without_exact_requests
 from cores.expand_core_patients_services import get_max_possible_master_requests, expand_core_patients_services
 
-from plotters.master_results_plotter import plot_master_results
-from plotters.subproblem_results_plotter import plot_subproblem_results
-from plotters.final_results_plotter import plot_final_results
+from plotters.tools import plot_master_results
+from plotters.tools import plot_subproblem_results
 
 from analyzers.tools import get_master_results_value, get_subproblem_results_value
 from analyzers.master_instance_analyzer import analyze_master_instance
@@ -506,7 +505,7 @@ def main(group_directory_path, config, config_file_path):
 
         if config['plot_final_results']:
             final_results_plot_file_name = iteration_plots_directory_path.joinpath(f'final_results_plot.png')
-            plot_final_results(master_instance, final_results, final_results_plot_file_name)
+            plot_master_results(master_instance, final_results, final_results_plot_file_name)
 
         are_all_days_completely_solved = True
         for day_name, day_results in all_subproblem_results.items():
