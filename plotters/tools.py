@@ -230,13 +230,24 @@ def plot_subproblem_results(instance, results, plot_file_path):
 
     # list of couples (operator, care_unit)
     operators = []
+    
+    first_operator_index_of_care_unit = {}
+    first_operator_name_of_care_unit = {}
 
     # list of care unit names
     care_unit_names = []
 
     for care_unit_name, care_unit in instance['day'].items():
         care_unit_names.append(care_unit_name)
+        
+        first_operator_index_of_care_unit[care_unit_name] = len(operators)
+        first_operator_name_of_care_unit[care_unit_name] = None
+        
         for operator_name, operator in care_unit.items():
+            
+            if first_operator_name_of_care_unit[care_unit_name] is None:
+                first_operator_name_of_care_unit[care_unit_name] = operator_name
+            
             operators.append((operator_name, care_unit_name))
             end_slot = operator['start'] + operator['duration']
 
@@ -253,29 +264,64 @@ def plot_subproblem_results(instance, results, plot_file_path):
             
             operator_index += 1
 
-    # draw thin vertical lines between each time slot
-    for time_slot_index in range(max_operator_time + 1):
-        plt.vlines(x=time_slot_index, ymin=0, ymax=len(operators) * slot_height, colors='grey', lw=0.5, ls=':', zorder=0)
+    max_end_slot_per_care_unit_first_operator = {}
 
     # draw boxes
     for schedule in results['scheduled']:
 
+        care_unit_name = schedule['care_unit']
         duration = instance['services'][schedule['service']]['duration']
-        operator_index = operators.index((schedule['operator'], schedule['care_unit']))
+        operator_index = operators.index((schedule['operator'], care_unit_name))
+
+        if schedule['operator'] == first_operator_name_of_care_unit[care_unit_name]:
+        
+            end_slot = schedule['time'] + duration
+            
+            if care_unit_name not in max_end_slot_per_care_unit_first_operator or end_slot > max_end_slot_per_care_unit_first_operator[care_unit_name]:
+                max_end_slot_per_care_unit_first_operator[care_unit_name] = end_slot
 
         ax.add_patch(Rectangle(
             (schedule['time'], operator_index * slot_height + space_between_lines),
             duration,
             slot_height - 2 * space_between_lines,
             linewidth=1, edgecolor='k', lw=2,
-            facecolor=colors[care_unit_names.index(schedule['care_unit']) % len(colors)], zorder=1))
+            facecolor=colors[care_unit_names.index(care_unit_name) % len(colors)], zorder=1))
         
-        # add a text label to every box with patient/service done
+        # add a text label to every box with patient/service rejected
         plt.text(
             (schedule['time'] + duration * 0.5),
             (operator_index + 0.125) * slot_height + space_between_lines,
             f'{schedule["patient"]}\n{schedule["service"]}',
             ha='center', weight='bold')
+
+    for rejected_schedule in results['rejected']:
+
+        service_name = rejected_schedule['service']
+        care_unit_name = instance['services'][service_name]['care_unit']
+        duration = instance['services'][service_name]['duration']
+        operator_index = first_operator_index_of_care_unit[care_unit_name]
+        
+        ax.add_patch(Rectangle(
+            (max_end_slot_per_care_unit_first_operator[care_unit_name], operator_index * slot_height + space_between_lines),
+            duration,
+            slot_height - 2 * space_between_lines,
+            linewidth=1, edgecolor='k', lw=2,
+            facecolor=colors[care_unit_names.index(care_unit_name) % len(colors)], zorder=1, alpha=0.5))
+        
+        plt.text(
+            (max_end_slot_per_care_unit_first_operator[care_unit_name] + duration * 0.5),
+            (operator_index + 0.125) * slot_height + space_between_lines,
+            f'{rejected_schedule["patient"]}\n{rejected_schedule["service"]}',
+            ha='center', weight='bold')
+
+        max_end_slot_per_care_unit_first_operator[care_unit_name] += duration
+
+        if max_operator_time < max_end_slot_per_care_unit_first_operator[care_unit_name]:
+            max_operator_time = max_end_slot_per_care_unit_first_operator[care_unit_name]
+
+    # draw thin vertical lines between each time slot
+    for time_slot_index in range(max_operator_time + 1):
+        plt.vlines(x=time_slot_index, ymin=0, ymax=len(operators) * slot_height, colors='grey', lw=0.5, ls=':', zorder=0)
 
     # add ticks to both axis (time slots in the x, operators in the y)
     ax.set_xticks([i for i in range(0, max_operator_time + 1)])

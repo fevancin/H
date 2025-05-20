@@ -2,8 +2,8 @@ from pathlib import Path
 import argparse
 import json
 
-from plotters.final_results_plotter import plot_final_results
-from plotters.subproblem_results_plotter import plot_subproblem_results
+from tools import plot_master_results
+from tools import plot_subproblem_results
 
 
 if __name__ != '__main__':
@@ -78,7 +78,7 @@ for group_directory_path in groups_directory_path.iterdir():
     if 'days' in instance:
         
         best_final_solution_plot_file_path = best_solution_plot_directory.joinpath('final_results.png')
-        plot_final_results(instance, results, best_final_solution_plot_file_path)
+        plot_master_results(instance, results, best_final_solution_plot_file_path)
         
         for day_name in instance['days'].keys():
 
@@ -87,8 +87,15 @@ for group_directory_path in groups_directory_path.iterdir():
                 'day': instance['days'][day_name]
             }
             subproblem_results = {
-                'scheduled': results['scheduled'][day_name]
+                'scheduled': results['scheduled'][day_name],
+                'rejected': []
             }
+
+            subproblem_results_file_path = group_directory_path.joinpath('results').joinpath(f'iter_{best_iteration_index}').joinpath(f'subproblem_day_{day_name}_results.json')
+            if subproblem_results_file_path.exists():
+                with open(subproblem_results_file_path, 'r') as file:
+                    true_subproblem_results = json.load(file)
+                subproblem_results['rejected'] = true_subproblem_results['rejected']
 
             best_subproblem_solution_day_plot_file_path = best_solution_plot_directory.joinpath(f'subproblem_results_day_{day_name}.png')
             plot_subproblem_results(subproblem_instance, subproblem_results, best_subproblem_solution_day_plot_file_path)

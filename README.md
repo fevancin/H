@@ -570,7 +570,7 @@ save_cores: true
 # check_final_results: false
 
 # plot_master_resultss: false
-# plot_subproblem_resultss: false
+# plot_subproblem_results: false
 
 master_config:
   additional_info:
