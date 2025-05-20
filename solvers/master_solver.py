@@ -287,7 +287,7 @@ def add_optimization_to_master_model(model, instance):
 
     # optimization_index are on the form (patient, day)
     optimization_index = set()
-    for patient_name, service_name, day_name in model.do_index:
+    for patient_name, _, day_name in model.do_index:
         optimization_index.add((patient_name, int(day_name)))
     model.optimization_index = pyo.Set(initialize=sorted(optimization_index))
     

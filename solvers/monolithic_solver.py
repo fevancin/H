@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 
-from solvers.tools import clamp, common_main_solver
+from tools import clamp, common_main_solver
 
 
 def get_monolithic_model(instance, additional_info):
