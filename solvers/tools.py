@@ -27,9 +27,6 @@ def clamp(start: int, end: int, start_bound: int, end_bound: int) -> tuple[int, 
 
     return (start, end)
 
-
-def common_main_solver(command_name, create_model_function, get_results_function):
-
     parser = argparse.ArgumentParser(prog=command_name, description='Solve instances')
     parser.add_argument('-i', '--input', type=Path, help='Group instances directory path', required=True)
     parser.add_argument('-c', '--config', type=Path, help='YAML file configuration path', required=True)

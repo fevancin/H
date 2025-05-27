@@ -1,4 +1,4 @@
-from checkers.tools import check_services, check_day, common_main_checker
+from checkers.tools import check_services, check_day
 
 
 def check_days(days):
@@ -155,11 +155,3 @@ def check_master_instance(master_instance):
     check_patients(master_instance['patients'])
 
     check_protocol_windows_integrity(master_instance)
-    
-
-if __name__ == '__main__':
-
-    common_main_checker(
-        command_name='Master instance checker',
-        function_to_call=check_master_instance,
-        needs_results=False)

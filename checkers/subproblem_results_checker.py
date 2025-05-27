@@ -1,7 +1,6 @@
 from checkers.tools import check_results_general_shape
 from checkers.tools import check_schedule_without_window, check_schedule_with_time
 from checkers.tools import check_integrity_schedule_with_time, check_integrity_schedule_basic
-from checkers.tools import common_main_checker
 
 
 def check_subproblem_results(subproblem_instance, results):
@@ -45,11 +44,3 @@ def check_integrity_requests_represented(results, instance):
     
     if len(patients_requests) > 0:
         raise ValueError(f'some request are not in the results: {patients_requests}')
-
-
-if __name__ == '__main__':
-
-    common_main_checker(
-        command_name='Subproblem results checker',
-        function_to_call=check_subproblem_results,
-        needs_results=True)

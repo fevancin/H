@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 
-from tools import clamp, common_main_solver
+from tools import clamp
 
 
 def get_monolithic_model(instance, additional_info):
@@ -457,11 +457,3 @@ def get_results_from_monolithic_model(model, additional_info):
         'scheduled': scheduled_requests_grouped_per_day,
         'rejected': rejected_requests
     }
-
-
-if __name__ == '__main__':
-
-    common_main_solver(
-        command_name='Monolithic solver',
-        create_model_function=get_monolithic_model,
-        get_results_function=get_results_from_monolithic_model)

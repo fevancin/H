@@ -1,6 +1,3 @@
-from analyzers.tools import common_main_analyzer
-
-
 def get_total_window_number(master_instance):
     
     window_number = 0
@@ -293,12 +290,3 @@ def analyze_master_instance(master_instance, instance_path):
     data['total_aggregate_demand_vs_disponibility'] = get_total_aggregate_demand_vs_disponibility(master_instance)
 
     return data
-
-
-if __name__ == '__main__':
-
-    common_main_analyzer(
-        command_name='Master instance analyzer',
-        analyzer_function=analyze_master_instance,
-        analysis_file_name='master_instance_analysis.csv',
-        need_results=False)

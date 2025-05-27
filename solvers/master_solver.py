@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 
-from solvers.tools import clamp, common_main_solver
+from solvers.tools import clamp
 
 
 def get_master_model(instance, additional_info):
@@ -336,11 +336,3 @@ def get_results_from_master_model(model, config):
         'scheduled': scheduled_requests_grouped_per_day,
         'rejected': rejected_requests
     }
-
-
-if __name__ == '__main__':
-
-    common_main_solver(
-        command_name='Master solver',
-        create_model_function=get_master_model,
-        get_results_function=get_results_from_master_model)

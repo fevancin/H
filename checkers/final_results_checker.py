@@ -1,7 +1,6 @@
 from checkers.tools import check_results_general_shape
 from checkers.tools import check_schedules_with_window, check_schedule_with_time
 from checkers.tools import check_integrity_schedule_with_window, check_integrity_schedule_with_time, check_integrity_protocols_represented
-from checkers.tools import common_main_checker
 
 
 def check_schedules_with_time(schedules):
@@ -36,11 +35,3 @@ def check_final_results(subproblem_instance, subproblem_results):
     check_integrity_schedules_with_time(subproblem_results['scheduled'], subproblem_instance)
     check_integrity_schedule_with_window(subproblem_results['rejected'], subproblem_instance)
     check_integrity_protocols_represented(subproblem_results, subproblem_instance)
-
-
-if __name__ == '__main__':
-
-    common_main_checker(
-        command_name='Final results checker',
-        function_to_call=check_final_results,
-        needs_results=True)

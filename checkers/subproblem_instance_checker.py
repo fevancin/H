@@ -1,4 +1,4 @@
-from checkers.tools import check_services, check_day, common_main_checker
+from checkers.tools import check_services, check_day
 
 
 def check_patient(patient, patient_name):
@@ -64,11 +64,3 @@ def check_subproblem_instance(subproblem_instance):
     check_patients(subproblem_instance['patients'])
 
     check_requests_integrity(subproblem_instance)
-    
-
-if __name__ == '__main__':
-
-    common_main_checker(
-        command_name='Subproblem instance checker',
-        function_to_call=check_subproblem_instance,
-        needs_results=False)

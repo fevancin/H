@@ -1,7 +1,5 @@
 import pyomo.environ as pyo
 
-from solvers.tools import common_main_solver
-
 
 def get_subproblem_model(instance, additional_info):
     
@@ -364,11 +362,3 @@ def get_results_from_subproblem_model(model, additional_info):
         'scheduled': scheduled_requests,
         'rejected': rejected_requests
     }
-
-
-if __name__ == '__main__':
-
-    common_main_solver(
-        command_name='Subproblem solver',
-        create_model_function=get_subproblem_model,
-        get_results_function=get_results_from_subproblem_model)

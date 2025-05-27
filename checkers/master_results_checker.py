@@ -1,7 +1,6 @@
 from checkers.tools import check_results_general_shape
 from checkers.tools import check_schedule_without_window, check_schedules_with_window
 from checkers.tools import check_integrity_schedule_basic, check_integrity_total_request_durations_per_care_unit, check_integrity_schedule_with_window, check_integrity_protocols_represented
-from checkers.tools import common_main_checker
 
 
 def check_scheduled_without_window(schedules):
@@ -38,11 +37,3 @@ def check_master_results(master_instance, master_results):
     check_integrity_schedules_without_window(master_results['scheduled'], master_instance)
     check_integrity_schedule_with_window(master_results['rejected'], master_instance)
     check_integrity_protocols_represented(master_results, master_instance)
-    
-
-if __name__ == '__main__':
-
-    common_main_checker(
-        command_name='Master results checker',
-        function_to_call=check_master_results,
-        needs_results=True)
