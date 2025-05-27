@@ -266,6 +266,9 @@ def plot_subproblem_results(instance, results, plot_file_path):
 
     max_end_slot_per_care_unit_first_operator = {}
 
+    for care_unit_name in instance['day'].keys():
+        max_end_slot_per_care_unit_first_operator[care_unit_name] = 0
+
     # draw boxes
     for schedule in results['scheduled']:
 
@@ -277,7 +280,7 @@ def plot_subproblem_results(instance, results, plot_file_path):
         
             end_slot = schedule['time'] + duration
             
-            if care_unit_name not in max_end_slot_per_care_unit_first_operator or end_slot > max_end_slot_per_care_unit_first_operator[care_unit_name]:
+            if end_slot > max_end_slot_per_care_unit_first_operator[care_unit_name]:
                 max_end_slot_per_care_unit_first_operator[care_unit_name] = end_slot
 
         ax.add_patch(Rectangle(
