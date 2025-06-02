@@ -2,6 +2,7 @@ from pathlib import Path
 import argparse
 import json
 import matplotlib.pyplot as plt
+import csv
 
 
 if __name__ != '__main__':
@@ -41,13 +42,13 @@ for group_directory_path in group_paths:
 
         iteration_index = int(iteration_analysis_directory_path.name.removeprefix('iter_'))
 
-        cores_file_path = iteration_analysis_directory_path.joinpath('core_analysis.json')
-        if not cores_file_path.exists():
+        cores_analysis_file_path = iteration_analysis_directory_path.joinpath('core_analysis.json')
+        if not cores_analysis_file_path.exists():
             continue
-        with open(cores_file_path, 'r') as file:
-            cores = json.load(file)
+        with open(cores_analysis_file_path, 'r') as file:
+            cores_analysis = json.load(file)
         
-        cores_data[iteration_index] = cores
+        cores_data[iteration_index] = cores_analysis
 
     xs = []
     y1 = []
@@ -91,3 +92,10 @@ for group_directory_path in group_paths:
     
     plt.savefig(plot_file_path)
     plt.close('all')
+
+    with open(analysis_directory_path.joinpath('cores.csv'), 'w', newline='') as file:
+        fieldnames = list(cores_data[0].keys())
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        for data in cores_data.values():
+            writer.writerow(data)

@@ -205,7 +205,12 @@ def get_master_model(instance, additional_info):
         @model.Constraint(model.days)
         def compose_function_value(model, d):
             return model.function_value_component[d] == pyo.quicksum(model.do[p, s, dd] * model.service_duration[s] for p, s, dd in model.do_index if d == dd)
-        
+    
+    return model
+
+
+def add_bin_packing_cuts_to_master_model(model):
+
     @model.Objective(sense=pyo.maximize)
     def total_satisfied_service_durations(model):
         return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index)
@@ -225,9 +230,9 @@ def get_master_model(instance, additional_info):
         day_name = str(d)
         operator_number = len(instance['days'][day_name][c])
         operator_duration = instance['days'][day_name][c]['op00']['duration']
-        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 4]
-        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] >= (operator_duration * 0.5 + 1)]
-        if len(tuple_list) == 0:
+        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.5)]
+        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] >= int(operator_duration * 0.5 + 1)]
+        if len(tuple_list) == 0 or len(greater_tuple_list) == 0:
             return pyo.Constraint.Skip
         return pyo.quicksum([model.do[p, s, d] for p, s in tuple_list]) <= operator_number * 2.0 - 2.0 * pyo.quicksum([model.do[p, s, d] for p, s in greater_tuple_list])
     
@@ -235,9 +240,10 @@ def get_master_model(instance, additional_info):
     def case_four_a(model, d, c):
         day_name = str(d)
         operator_number = len(instance['days'][day_name][c])
-        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 3]
-        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 5]
-        if len(tuple_list) == 0:
+        operator_duration = instance['days'][day_name][c]['op00']['duration']
+        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.5 - 1)]
+        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.5 + 1)]
+        if len(tuple_list) == 0 or len(greater_tuple_list) == 0:
             return pyo.Constraint.Skip
         return pyo.quicksum([model.do[p, s, d] for p, s in tuple_list]) <= operator_number * 2.0 - pyo.quicksum([model.do[p, s, d] for p, s in greater_tuple_list])
     
@@ -245,9 +251,10 @@ def get_master_model(instance, additional_info):
     def case_four_b(model, d, c):
         day_name = str(d)
         operator_number = len(instance['days'][day_name][c])
-        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 3]
-        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 6]
-        if len(tuple_list) == 0:
+        operator_duration = instance['days'][day_name][c]['op00']['duration']
+        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.5 - 1)]
+        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.5 + 2)]
+        if len(tuple_list) == 0 or len(greater_tuple_list) == 0:
             return pyo.Constraint.Skip
         return pyo.quicksum([model.do[p, s, d] for p, s in tuple_list]) <= operator_number * 2.0 - 2.0 * pyo.quicksum([model.do[p, s, d] for p, s in greater_tuple_list])
     
@@ -255,9 +262,10 @@ def get_master_model(instance, additional_info):
     def case_five_a(model, d, c):
         day_name = str(d)
         operator_number = len(instance['days'][day_name][c])
-        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 2]
-        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] >= 5]
-        if len(tuple_list) == 0:
+        operator_duration = instance['days'][day_name][c]['op00']['duration']
+        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.25)]
+        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] >= int(operator_duration * 0.5 + 1)]
+        if len(tuple_list) == 0 or len(greater_tuple_list) == 0:
             return pyo.Constraint.Skip
         return pyo.quicksum([model.do[p, s, d] for p, s in tuple_list]) <= operator_number * 4.0 - 3.0 * pyo.quicksum([model.do[p, s, d] for p, s in greater_tuple_list])
     
@@ -265,13 +273,12 @@ def get_master_model(instance, additional_info):
     def case_five_b(model, d, c):
         day_name = str(d)
         operator_number = len(instance['days'][day_name][c])
-        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 2]
-        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == 4]
+        operator_duration = instance['days'][day_name][c]['op00']['duration']
+        tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.25)]
+        greater_tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd and model.service_care_unit[s] == c and model.service_duration[s] == int(operator_duration * 0.5)]
         if len(tuple_list) == 0:
             return pyo.Constraint.Skip
         return pyo.quicksum([model.do[p, s, d] for p, s in tuple_list]) <= operator_number * 4.0 - 2.0 * pyo.quicksum([model.do[p, s, d] for p, s in greater_tuple_list])
-
-    return model
 
 
 def add_optimization_to_master_model(model, instance):
