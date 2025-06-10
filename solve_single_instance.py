@@ -14,6 +14,7 @@ from checkers.subproblem_results_checker import check_subproblem_results
 from checkers.final_results_checker import check_final_results
 
 from solvers.master_solver import get_master_model, get_results_from_master_model
+from solvers.master_solver import add_objective_value_constraint_class, add_objective_value_constraints
 from solvers.subproblem_solver import get_subproblem_model, get_results_from_subproblem_model
 
 from cores.compute_cores import compute_dumb_cores, compute_basic_cores, compute_reduced_cores, aggregate_and_remove_duplicate_cores
@@ -241,9 +242,10 @@ def main(group_directory_path, config, config_file_path):
     print(f'Solving instance \'{master_instance_file_path}\' with configuration from \'{config_file_path}\'')
     total_start_time = time.perf_counter()
 
-    if config['use_cores']:
+    if config['use_cores'] or 'use_objective_value_constraints' in config['master_config']['additional_info']:
         max_possible_master_requests = get_max_possible_master_requests(master_instance)
 
+    if config['use_cores']:
         if config['expand_core_days']:
             expanded_days = compute_expanded_days(master_instance)
             if config['save_expanded_days']:
@@ -259,6 +261,9 @@ def main(group_directory_path, config, config_file_path):
 
     if config['use_cores']:
         add_cores_constraint_class_to_master_model(master_model)
+    
+    if 'use_objective_value_constraints' in config['master_config']['additional_info']:
+        add_objective_value_constraint_class(master_model)
 
     master_model_creation_end_time = time.perf_counter()
     if config['print_time_taken_by_master_creation']:
@@ -557,6 +562,9 @@ def main(group_directory_path, config, config_file_path):
                 print(f'[iter {iteration_index}] Master and subproblems reached the minimum value difference ({min_difference}%): exiting iteration cycle.') 
                 break
 
+        if 'use_objective_value_constraints' in config['master_config']['additional_info']:
+            add_objective_value_constraints(master_model, master_instance, all_subproblem_results, max_possible_master_requests)
+    
         if config['use_cores']:
             
             if config['analyze_cores']:
@@ -581,8 +589,10 @@ def main(group_directory_path, config, config_file_path):
             
             if config['analyze_cores']:
 
+                core_number = len(current_iteration_cores)
+
                 # Numero di core prima dell'eventuale espansione
-                cores_analysis['core_number_pre_expansion'] = len(current_iteration_cores)
+                cores_analysis['core_number_pre_expansion'] = core_number
                 
                 day_names = set()
                 for core in current_iteration_cores:
@@ -592,12 +602,31 @@ def main(group_directory_path, config, config_file_path):
                 cores_analysis['day_with_cores_pre_expansion'] = len(day_names)
 
                 total_core_components_number = 0
-                for core in  current_iteration_cores:
+                for core in current_iteration_cores:
                     total_core_components_number += len(core['components'])
                 
                 # Numero medio di componenti dei core
-                cores_analysis['average_core_size_pre_expansion'] = total_core_components_number / len(current_iteration_cores)
+                cores_analysis['average_core_size_pre_expansion'] = total_core_components_number / core_number
             
+                # Numero di core le cui componenti sono tutte quelle chieste dal master
+                cores_equal_to_master_request = 0
+                total_core_component_percentages = 0
+
+                for core in current_iteration_cores:
+                    
+                    day_name = core['days'][0]
+                    daily_results = all_subproblem_results[day_name]
+                    
+                    if len(core['components']) == len(daily_results['scheduled']) + len(daily_results['rejected']):
+                        cores_equal_to_master_request += 1
+                    
+                    total_core_component_percentages += len(core['components']) / (len(daily_results['scheduled']) + len(daily_results['rejected']))
+
+                cores_analysis['number_of_core_equal_to_master_request'] = cores_equal_to_master_request
+                cores_analysis['percentage_of_core_equal_to_master_request'] = cores_equal_to_master_request / core_number
+
+                cores_analysis['average_percentage_of_core_done_by_subproblem'] = total_core_component_percentages / core_number
+
             # Se richiesto, aggiorna le liste dei giorni in cui i core sono
             # attivi con tutti quei giorni 'minori o uguali' nelle unità di
             # cura influenzate.

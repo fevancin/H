@@ -71,14 +71,14 @@ for group_directory_path in group_paths:
     
     _, axs = plt.subplots(2)
 
-    axs[0].plot(xs, y1, 'o-', linewidth=0.5, markersize=0.75, label='pre expansion')
-    axs[0].plot(xs, y2, 'x-', linewidth=0.5, markersize=0.75, label='post expansion')
+    axs[0].plot(xs, y1, 'o', linewidth=0.5, label='pre expansion')
+    axs[0].plot(xs, y2, 'x', linewidth=0.5, label='post expansion')
     axs[0].legend()
     axs[0].set_title(f'Cores')
     axs[0].set(ylabel='Average core number')
 
-    axs[1].plot(xs, y3, 'o-', linewidth=0.5, markersize=0.75, label='pre expansion')
-    axs[1].plot(xs, y4, 'x-', linewidth=0.5, markersize=0.75, label='post expansion')
+    axs[1].plot(xs, y3, 'o', linewidth=0.5, label='pre expansion')
+    axs[1].plot(xs, y4, 'x', linewidth=0.5, label='post expansion')
     axs[1].legend()
     axs[1].set(ylabel='Average core size', xlabel='Iteration')
 

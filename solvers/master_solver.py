@@ -186,6 +186,9 @@ def get_master_model(instance, additional_info):
     if 'add_optimization' in additional_info:
         add_optimization_to_master_model(model, instance)
 
+    if 'use_bin_packing' in additional_info:
+        add_bin_packing_cuts_to_master_model(model, instance)
+
     ############################## OBJECTIVE FUNCTION ##############################
 
     # the solution value depends linearly by the total service duration of the
@@ -206,15 +209,17 @@ def get_master_model(instance, additional_info):
         def compose_function_value(model, d):
             return model.function_value_component[d] == pyo.quicksum(model.do[p, s, dd] * model.service_duration[s] for p, s, dd in model.do_index if d == dd)
     
-    return model
-
-
-def add_bin_packing_cuts_to_master_model(model):
-
     @model.Objective(sense=pyo.maximize)
     def total_satisfied_service_durations(model):
         return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index)
     
+    return model
+
+
+def add_bin_packing_cuts_to_master_model(model, instance):
+
+    # il numero di servizi lunghi più della metà dello shift non può essere
+    # maggiore al numero di operatori
     @model.Constraint(model.care_units)
     def case_two(model, d, c):
         day_name = str(d)
@@ -309,6 +314,78 @@ def add_optimization_to_master_model(model, instance):
     @model.Constraint(model.optimization_index)
     def redundant_patient_total_duration(model, p, d):
         return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
+
+
+def add_objective_value_constraint_class(model):
+
+    model.objective_value_constraints = pyo.ConstraintList()
+
+
+def add_objective_value_constraints(model, instance, all_subproblem_results, max_possible_master_requests):
+
+    # Per ogni giorno salva il valore della funzione obiettivo del sottoproblema
+    solution_values = {}
+    for day_name, day_results in all_subproblem_results.items():
+        solution_value = 0
+        for scheduled_request in day_results['scheduled']:
+            patient_name = scheduled_request['patient']
+            service_name = scheduled_request['service']
+            solution_value += instance['services'][service_name]['duration'] * instance['patients'][patient_name]['priority']
+        solution_values[day_name] = solution_value
+
+    # Aggiungi il vincolo per cui z_d >= z_d* - M*sum(1 - x per ogni x=1) in cui:
+    # > z è la funzione obiettivo del giorno corrispondente al sottoproblema
+    # > z* è il valore della funzione obiettivo restituita dal sottoproblema
+    # > M è una costante grande
+    # > x sono le variabili di schedulazione poste ad 1 dal sottoproblema.
+    # Questo vincolo è relativo ad un certo giorno d.
+
+    # Se il MP chiede almeno quello che aveva chiesto al SP il valore della
+    # funzione obiettivo sarà almeno z_d*.
+    for day_name, day_results in all_subproblem_results.items():
+        day_index = int(day_name)
+        
+        tuple_list = []
+        for scheduled_request in day_results['scheduled']:
+            patient_name = scheduled_request['patient']
+            service_name = scheduled_request['service']
+            tuple_list.append((patient_name, service_name, day_index))
+
+        model.objective_value_constraints.add(expr=(model.function_value_component[day_index] >= solution_values[day_name] - solution_values[day_name] * 100 * pyo.quicksum([(1 - model.do[p, s, d]) for p, s, d in tuple_list])))
+
+    # Aggiungi il vincolo per cui z_d <= z_d* + M*sum(x per ogni x=0) in cui:
+    # > z è la funzione obiettivo del giorno corrispondente al sottoproblema
+    # > z* è il valore della funzione obiettivo restituita dal sottoproblema
+    # > M è una costante grande
+    # > x sono le variabili di schedulazione non richieste al sottoproblema.
+    # Questo vincolo è relativo ad un certo giorno d.
+
+    # Se il MP chiede di nuovo qualcosa in cui continua a non esserci almeno ciò
+    # che non aveva chiesto prima, la funzione obiettivo non potrà essere migliore.
+    for day_name, day_results in all_subproblem_results.items():
+        day_index = int(day_name)
+            
+        tuple_list = []
+        for possible_request in max_possible_master_requests[day_name]:
+        
+            patient_name = possible_request['patient']
+            service_name = possible_request['service']
+        
+            was_proposed_to_subproblem = False
+            for rejected_request in day_results['rejected']:
+                if rejected_request['patient'] == patient_name and rejected_request['service'] == service_name:
+                    was_proposed_to_subproblem = True
+                    break
+            if not was_proposed_to_subproblem:
+                for scheduled_request in day_results['scheduled']:
+                    if scheduled_request['patient'] == patient_name and scheduled_request['service'] == service_name:
+                        was_proposed_to_subproblem = True
+                        break
+            
+            if not was_proposed_to_subproblem:
+                tuple_list.append((patient_name, service_name, day_index))
+
+        model.objective_value_constraints.add(expr=(model.function_value_component[day_index] <= solution_values[day_name] + solution_values[day_name] * 100 * pyo.quicksum([model.do[p, s, d] for p, s, d in tuple_list])))
 
 
 def get_results_from_master_model(model, config):

@@ -102,7 +102,10 @@ def compute_reduced_cores(all_subproblem_results, master_instance):
             rejected_care_unit_name = rejected_service['care_unit']
 
             # Componenti del nuovo core (lista di coppie paziente, servizio).
-            core_components = []
+            core_components = [{
+                'patient': rejected_patient_name,
+                'service': rejected_service_name
+            }]
 
             # Il processo di aggiunta delle componenti è analogo alla visita di
             # un grafo bipartito in cui a destra vi sono i pazienti e a sinistra
@@ -189,7 +192,7 @@ def compute_reduced_cores(all_subproblem_results, master_instance):
 
             # Si aggiunge il core così calcolato, valido nel giorno corrente.
             cores.append({
-                'components': core_components,
+                'components': sorted(core_components, key=lambda c: (c['patient'], c['service'])),
                 'days': [day_name]
             })
 
