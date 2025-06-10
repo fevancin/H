@@ -30,12 +30,13 @@ def plot_subproblem_cumulative_times(all_master_results_info, all_subproblem_res
 
     _, ax = plt.subplots()
     
-    ax.plot(xmas, ymas, 'o-')
+    ax.plot(xmas, ymas, 'o-', label='master')
     if len(xsub) > 0:
-        ax.plot(xsub, ysub, 'x-')
+        ax.plot(xsub, ysub, 'x-', label='subproblem')
         ax.set_xlim(xmin=0, xmax=(xsub[-1] + 0.5))
+    ax.legend()
 
-    plt.title(f'Cumulated solving times')
+    plt.title(f'Cumulated objective function value')
     plt.xlabel('Time (s)')
     plt.ylabel('Objective function value')
 
@@ -43,7 +44,7 @@ def plot_subproblem_cumulative_times(all_master_results_info, all_subproblem_res
     plt.close('all')
 
 
-def plot_scatter_times(all_master_results_info, all_subproblem_results_info, plot_file_path):
+def plot_solving_times(all_master_results_info, all_subproblem_results_info, plot_file_path):
 
     _, ax = plt.subplots()
 
@@ -329,7 +330,7 @@ def plot_results_values_by_instance(groups_directory_path, plot_file_path):
     plt.close('all')
 
 
-def plot_iteration_times_by_day(all_subproblem_results_info, plot_file_path):
+def plot_solving_times_by_day(all_subproblem_results_info, plot_file_path):
 
     colors = 'bgrcmyk'
     _, ax = plt.subplots()
@@ -364,7 +365,7 @@ def plot_iteration_times_by_day(all_subproblem_results_info, plot_file_path):
     ax.set_xticks([i * column_space_between + (i - 0.5) * column_width for i in range(1, max_day_index + 2)], labels=day_names)
     plt.xticks(rotation=90)
 
-    plt.title(f'Solving time by day')
+    plt.title(f'Cumulated solving time by day')
     plt.xlabel('Days')
     plt.ylabel('Time (s)')
 
@@ -396,7 +397,7 @@ def plot_free_slots(master_instance, all_final_results, plot_file_path):
     
     _, ax = plt.subplots()
 
-    ax.plot(xs, ys, '.')
+    ax.plot(xs, ys, 'o')
 
     plt.title(f'Free slots by iteration')
     plt.xlabel('Iteration')

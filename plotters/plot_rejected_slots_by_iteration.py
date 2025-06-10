@@ -99,9 +99,12 @@ for group_directory_path in group_paths:
     
     _, ax = plt.subplots()
 
-    ax.errorbar(xs, ys, yerr=[ylowererror, yuppererror], fmt='o', capsize=1, linewidth=0.25, markersize=0.75)
     if len(xs) > 100:
+        ax.errorbar(xs, ys, yerr=[ylowererror, yuppererror], fmt='o', capsize=1, linewidth=0.25, markersize=0.75)
         plt.xticks([])
+    else:
+        ax.errorbar(xs, ys, yerr=[ylowererror, yuppererror], fmt='o', capsize=2)
+
 
     plt.title(f'Rejected slots by iteration')
     plt.xlabel('Iteration')

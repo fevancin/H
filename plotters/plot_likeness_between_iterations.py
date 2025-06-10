@@ -77,11 +77,14 @@ for group_directory_path in group_paths:
     
     _, ax = plt.subplots()
 
-    ax.plot(xs, ys, 'o', linewidth=0.5, markersize=0.75)
-
     if len(xs) > 100:
+        ax.plot(xs, ys, 'o', linewidth=0.5, markersize=0.75)
         plt.xticks([])
-
+    else:
+        ax.plot(xs, ys, 'o')
+    
+    ax.set_ylim([0, 1])
+    
     plt.title(f'Equal requests percentage between iterations')
     plt.xlabel('Iteration')
     plt.ylabel('Equal requests percentage')
@@ -89,7 +92,7 @@ for group_directory_path in group_paths:
     plot_directory_path = group_directory_path.joinpath('plots')
     plot_directory_path.mkdir(exist_ok=True)
 
-    plot_file_path = plot_directory_path.joinpath('likeness_percentage_between_iterations.png')
+    plot_file_path = plot_directory_path.joinpath('likeness_between_iterations.png')
     
     plt.savefig(plot_file_path)
 
@@ -108,13 +111,15 @@ for group_directory_path in group_paths:
     
     _, ax = plt.subplots()
 
-    ax.plot(xms, yms, 'o', linewidth=0.5, markersize=0.75, label='Total')
-    ax.plot(xss, yss, 'x', linewidth=0.5, markersize=0.75, label='Equal')
-
-    ax.legend()
-
     if len(xms) > 100:
+        ax.plot(xms, yms, 'o-', linewidth=0.5, markersize=0.75, label='Total')
+        ax.plot(xss, yss, 'x-', linewidth=0.5, markersize=0.75, label='Equal')
         plt.xticks([])
+    else:
+        ax.plot(xms, yms, 'o-', label='Total')
+        ax.plot(xss, yss, 'x-', label='Equal')
+    ax.legend()
+    ax.set_ylim([0, None])
 
     plt.title(f'Equal requests between iterations')
     plt.xlabel('Iteration')

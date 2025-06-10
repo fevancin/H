@@ -11,10 +11,10 @@ from plotters.aggregate_results_plotter import plot_all_instances_iteration_time
 from plotters.aggregate_results_plotter import plot_results_values_by_group
 from plotters.aggregate_results_plotter import plot_results_values_by_instance
 from plotters.aggregate_results_plotter import plot_subproblem_cumulative_times
-from plotters.aggregate_results_plotter import plot_scatter_times
+from plotters.aggregate_results_plotter import plot_solving_times
 from plotters.aggregate_results_plotter import plot_cores
 
-from plotters.aggregate_results_plotter import plot_iteration_times_by_day
+from plotters.aggregate_results_plotter import plot_solving_times_by_day
 from plotters.aggregate_results_plotter import plot_free_slots
 
 
@@ -146,12 +146,12 @@ for group_directory_path in groups_directory_path.iterdir():
         plot_subproblem_cumulative_times(all_master_results_info, all_subproblem_results_info, plot_file_path)
 
     if all_subproblem_results_info is not None:
-        plot_file_path = plot_directory_path.joinpath('scatter_subproblem_times.png')
-        plot_scatter_times(all_master_results_info, all_subproblem_results_info, plot_file_path)
+        plot_file_path = plot_directory_path.joinpath('solving_times.png')
+        plot_solving_times(all_master_results_info, all_subproblem_results_info, plot_file_path)
 
     if all_subproblem_results_info is not None:
-        plot_file_path = plot_directory_path.joinpath('iteration_times_by_day.png')
-        plot_iteration_times_by_day(all_subproblem_results_info, plot_file_path)
+        plot_file_path = plot_directory_path.joinpath('solving_times_by_day.png')
+        plot_solving_times_by_day(all_subproblem_results_info, plot_file_path)
 
     plot_file_path = plot_directory_path.joinpath('cores.png')
     plot_cores(cores_directory_path, plot_file_path)

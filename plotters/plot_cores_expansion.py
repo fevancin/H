@@ -74,7 +74,7 @@ for group_directory_path in group_paths:
     axs[0].plot(xs, y1, 'o', linewidth=0.5, label='pre expansion')
     axs[0].plot(xs, y2, 'x', linewidth=0.5, label='post expansion')
     axs[0].legend()
-    axs[0].set_title(f'Cores')
+    axs[0].set_title(f'Cores pre and post expansion')
     axs[0].set(ylabel='Average core number')
 
     axs[1].plot(xs, y3, 'o', linewidth=0.5, label='pre expansion')
@@ -88,7 +88,7 @@ for group_directory_path in group_paths:
     plot_directory_path = group_directory_path.joinpath('plots')
     plot_directory_path.mkdir(exist_ok=True)
 
-    plot_file_path = plot_directory_path.joinpath('cores.png')
+    plot_file_path = plot_directory_path.joinpath('core_expansion.png')
     
     plt.savefig(plot_file_path)
     plt.close('all')

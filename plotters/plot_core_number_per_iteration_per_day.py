@@ -92,20 +92,21 @@ for group_directory_path in group_paths:
         yys.append(data['percentage_of_core_equal_to_master_request'])
         yyys.append(data['average_percentage_of_core_done_by_subproblem'])
 
-    _, axs = plt.subplots(3)
+    _, axs = plt.subplots(2)
 
-    axs[0].plot(xs, ys, 'o')
-    axs[0].set_title(f'Cores divided by day')
-    axs[0].set(ylabel='Core number')
+    # axs[0].plot(xs, ys, 'o')
+    # axs[0].set_title(f'Cores divided by day')
+    # axs[0].set(ylabel='Core number')
 
-    axs[1].plot(xxs, yys, 'o')
-    axs[1].set_title(f'When core is equal to master request')
-    axs[1].set(ylabel='Percentage')
+    axs[0].plot(xxs, yys, 'o')
+    axs[0].set_title(f'When core is equal to master request')
+    axs[0].set(ylabel='Percentage')
+    axs[0].set_ylim([0, 1])
+
+    axs[1].plot(xxs, yyys, 'o')
+    axs[1].set_title(f'Percentage of core satisfied by SP')
+    axs[1].set(ylabel='Percentage', xlabel='Iteration')
     axs[1].set_ylim([0, 1])
-
-    axs[2].plot(xxs, yyys, 'o')
-    axs[2].set_title(f'Percentage of core satisfied by SP')
-    axs[2].set(ylabel='Percentage', xlabel='Iteration')
     
     plt.tight_layout()
 
@@ -115,7 +116,7 @@ for group_directory_path in group_paths:
     plot_directory_path = group_directory_path.joinpath('plots')
     plot_directory_path.mkdir(exist_ok=True)
 
-    plot_file_path = plot_directory_path.joinpath('cores_number_by_day.png')
+    plot_file_path = plot_directory_path.joinpath('core_number_by_day.png')
     
     plt.savefig(plot_file_path)
     plt.close('all')

@@ -54,17 +54,18 @@ for group_directory_path in group_paths:
         with open(final_results_file_path, 'r') as file:
             final_results = json.load(file)
         
+        patient_names = set()
+        master_data[iteration_index] = 0
         for day_name, daily_scheduled in master_results['scheduled'].items():
-            patient_names = set()
             for schedule_item in daily_scheduled:
                 patient_names.add(schedule_item['patient'])
-            master_data[iteration_index] = len(daily_scheduled) / len(patient_names)
+            master_data[iteration_index] += len(daily_scheduled)
+        master_data[iteration_index] /= len(patient_names)
         
+        final_data[iteration_index] = 0
         for day_name, daily_scheduled in final_results['scheduled'].items():
-            patient_names = set()
-            for schedule_item in daily_scheduled:
-                patient_names.add(schedule_item['patient'])
-            final_data[iteration_index] = len(daily_scheduled) / len(patient_names)
+            final_data[iteration_index] += len(daily_scheduled)
+        final_data[iteration_index] /= len(patient_names)
 
     xmas = []
     ymas = []
@@ -80,13 +81,15 @@ for group_directory_path in group_paths:
     
     _, ax = plt.subplots()
 
-    ax.plot(xmas, ymas, 'o', linewidth=0.5, markersize=0.75, label='master')
-    ax.plot(xfin, yfin, 'x', linewidth=0.5, markersize=0.75, label='final')
+    if len(xmas) > 100:
+        ax.plot(xmas, ymas, 'o-', linewidth=0.5, markersize=0.75, label='master')
+        ax.plot(xfin, yfin, 'x-', linewidth=0.5, markersize=0.75, label='final')
+        plt.xticks([])
+    else:
+        ax.plot(xmas, ymas, 'o-', label='master')
+        ax.plot(xfin, yfin, 'x-', label='final')
 
     ax.legend()
-
-    if len(xmas) > 100:
-        plt.xticks([])
 
     plt.title(f'Average requests per patient')
     plt.xlabel('Iteration')
