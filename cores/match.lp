@@ -2,10 +2,10 @@
 % maniera tale che ogni vertice di sinistra scelga un compagno.
 % 
 % L'input deve specificare l'elenco di archi del grafo nella forma:
-% arc(pat1, srv1, pat2, arv2).
+% arc(pat1, srv1, pat2, srv2).
 % 
 % L'output contiene il sottoinsieme di archi scelti nella forma:
-% take(pat1, srv1, pat2, arv2).
+% take(pat1, srv1, pat2, srv2).
 
 
 % Scegli un solo arco per ogni vertice di sinistra.
