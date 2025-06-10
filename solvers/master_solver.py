@@ -183,8 +183,34 @@ def get_master_model(instance, additional_info):
         tuples_affected = [(p, s, d) for d in range(min_ws, max_we + 1) for pp, ss, dd in model.do_index if p == pp and s == ss and d == dd]
         return pyo.quicksum(model.do[p, s, d] for p, s, d in tuples_affected) <= 1 + model.window_overlap[p, s, ws, we, wws, wwe]
 
-    if 'add_optimization' in additional_info:
-        add_optimization_to_master_model(model, instance)
+    if 'use_redundant_patient_cut' in additional_info:
+
+        for day in instance['days'].values():
+            for care_unit in day.values():
+                start_time = None
+                for operator in care_unit.values():
+                    if start_time is None:
+                        start_time = operator['start']
+                    elif start_time != operator['start']:
+                        return
+
+        # optimization_index are on the form (patient, day)
+        optimization_index = set()
+        for patient_name, _, day_name in model.do_index:
+            optimization_index.add((patient_name, int(day_name)))
+        model.optimization_index = pyo.Set(initialize=sorted(optimization_index))
+        
+        # max_duration[d, c] is the maximum operator duration
+        @model.Param(model.days, domain=pyo.NonNegativeIntegers, mutable=False)
+        def max_duration(model, d):
+            return max([o['duration'] for c in instance['days'][str(d)].keys() for o in instance['days'][str(d)][c].values()])
+
+        # it is impossible for a single patient to do services of a specific care unit
+        # with a total duration greater than the longest operator duration of that care unit.
+        # This constraint is only valid if every care unit has all its operators that start at the same time.
+        @model.Constraint(model.optimization_index)
+        def redundant_patient_total_duration(model, p, d):
+            return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
 
     if 'use_bin_packing' in additional_info:
         add_bin_packing_cuts_to_master_model(model, instance)
@@ -284,37 +310,6 @@ def add_bin_packing_cuts_to_master_model(model, instance):
         if len(tuple_list) == 0:
             return pyo.Constraint.Skip
         return pyo.quicksum([model.do[p, s, d] for p, s in tuple_list]) <= operator_number * 4.0 - 2.0 * pyo.quicksum([model.do[p, s, d] for p, s in greater_tuple_list])
-
-
-def add_optimization_to_master_model(model, instance):
-
-    for day in instance['days'].values():
-        for care_unit in day.values():
-            start_time = None
-            for operator in care_unit.values():
-                if start_time is None:
-                    start_time = operator['start']
-                elif start_time != operator['start']:
-                    return
-
-    # optimization_index are on the form (patient, day)
-    optimization_index = set()
-    for patient_name, _, day_name in model.do_index:
-        optimization_index.add((patient_name, int(day_name)))
-    model.optimization_index = pyo.Set(initialize=sorted(optimization_index))
-    
-    # max_duration[d, c] is the maximum operator duration
-    @model.Param(model.days, domain=pyo.NonNegativeIntegers, mutable=False)
-    def max_duration(model, d):
-        return max([o['duration'] for c in instance['days'][str(d)].keys() for o in instance['days'][str(d)][c].values()])
-
-    # it is impossible for a single patient to do services of a specific care unit
-    # with a total duration greater than the longest operator duration of that care unit.
-    # This constraint is only valid if every care unit has all its operators that start at the same time.
-    @model.Constraint(model.optimization_index)
-    def redundant_patient_total_duration(model, p, d):
-        return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
-
 
 def add_objective_value_constraint_class(model):
 
