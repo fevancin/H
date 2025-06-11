@@ -183,7 +183,7 @@ def get_master_model(instance, additional_info):
         tuples_affected = [(p, s, d) for d in range(min_ws, max_we + 1) for pp, ss, dd in model.do_index if p == pp and s == ss and d == dd]
         return pyo.quicksum(model.do[p, s, d] for p, s, d in tuples_affected) <= 1 + model.window_overlap[p, s, ws, we, wws, wwe]
 
-    if 'use_redundant_patient_cut' in additional_info:
+    if 'use_patient_cut' in additional_info:
 
         for day in instance['days'].values():
             for care_unit in day.values():
@@ -209,7 +209,7 @@ def get_master_model(instance, additional_info):
         # with a total duration greater than the longest operator duration of that care unit.
         # This constraint is only valid if every care unit has all its operators that start at the same time.
         @model.Constraint(model.optimization_index)
-        def redundant_patient_total_duration(model, p, d):
+        def patient_total_duration(model, p, d):
             return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
 
     if 'use_bin_packing' in additional_info:

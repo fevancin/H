@@ -87,13 +87,13 @@ for group_directory_path in group_paths:
         plt.xticks([])
     else:
         ax.plot(xmas, ymas, 'o-', label='master')
-        ax.plot(xfin, yfin, 'x-', label='final')
+        ax.plot(xfin, yfin, 'x-', label='subproblem')
 
     ax.legend()
 
-    plt.title(f'Average requests per patient')
+    plt.title(f'Average requests per patient by iteration')
     plt.xlabel('Iteration')
-    plt.ylabel('Requests per patient')
+    plt.ylabel('Average requests per patient')
 
     plot_directory_path = group_directory_path.joinpath('plots')
     plot_directory_path.mkdir(exist_ok=True)

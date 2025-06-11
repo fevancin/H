@@ -104,7 +104,7 @@ for group_directory_path in group_paths:
     axs[0].set_ylim([0, 1])
 
     axs[1].plot(xxs, yyys, 'o')
-    axs[1].set_title(f'Percentage of core satisfied by SP')
+    axs[1].set_title(f'Average ratio of core size in respect to full MP request')
     axs[1].set(ylabel='Percentage', xlabel='Iteration')
     axs[1].set_ylim([0, 1])
     

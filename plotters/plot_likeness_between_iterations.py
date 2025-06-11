@@ -112,18 +112,18 @@ for group_directory_path in group_paths:
     _, ax = plt.subplots()
 
     if len(xms) > 100:
-        ax.plot(xms, yms, 'o-', linewidth=0.5, markersize=0.75, label='Total')
-        ax.plot(xss, yss, 'x-', linewidth=0.5, markersize=0.75, label='Equal')
+        ax.plot(xms, yms, 'o-', linewidth=0.5, markersize=0.75, label='Total master requests')
+        ax.plot(xss, yss, 'x-', linewidth=0.5, markersize=0.75, label='Equal requests')
         plt.xticks([])
     else:
-        ax.plot(xms, yms, 'o-', label='Total')
-        ax.plot(xss, yss, 'x-', label='Equal')
+        ax.plot(xms, yms, 'o-', label='Total master requests')
+        ax.plot(xss, yss, 'x-', label='Equal requests')
     ax.legend()
     ax.set_ylim([0, None])
 
-    plt.title(f'Equal requests between iterations')
+    plt.title(f'Requests between iterations')
     plt.xlabel('Iteration')
-    plt.ylabel('Equal requests')
+    plt.ylabel('Requests')
 
     plot_directory_path = group_directory_path.joinpath('plots')
     plot_directory_path.mkdir(exist_ok=True)

@@ -399,7 +399,7 @@ def plot_free_slots(master_instance, all_final_results, plot_file_path):
 
     ax.plot(xs, ys, 'o')
 
-    plt.title(f'Free slots by iteration')
+    plt.title(f'Feasible solution free slots by iteration')
     plt.xlabel('Iteration')
     plt.ylabel('Slots')
 
