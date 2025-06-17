@@ -185,15 +185,6 @@ def get_master_model(instance, additional_info):
 
     if 'use_patient_cut' in additional_info or 'minimize_hospital_accesses' in additional_info:
 
-        for day in instance['days'].values():
-            for care_unit in day.values():
-                start_time = None
-                for operator in care_unit.values():
-                    if start_time is None:
-                        start_time = operator['start']
-                    elif start_time != operator['start']:
-                        return
-
         # pat_day_indexes are on the form (patient, day)
         pat_days_index = set()
         for patient_name, _, day_name in model.do_index:
@@ -222,7 +213,7 @@ def get_master_model(instance, additional_info):
         @model.Constraint(model.pat_days_index)
         def if_patient_use_day(model, p, d):
             tuples_affected = [(p, s, d) for pp, s, dd in model.do_index if pp == p and dd == d]
-            return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in tuples_affected]) <= model.pat_use_day[p, d] * len(tuples_affected)
+            return pyo.quicksum([model.do[pp, s, dd] for pp, s, dd in tuples_affected]) <= model.pat_use_day[p, d] * len(tuples_affected)
 
     if 'use_bin_packing' in additional_info:
         add_bin_packing_cuts_to_master_model(model, instance)
