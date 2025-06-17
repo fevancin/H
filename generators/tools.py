@@ -9,10 +9,14 @@ import time
 
 def get_value(config):
 
-    if type(config) is int or type(config) is float:
+    if type(config) is int or type(config) is float or type(config) is bool:
         return config
     
     if 'average' not in config:
+
+        if 'mode' in config:
+            return random.triangular(config['min'], config['max'], config['mode'])
+
         return random.randint(config['min'], config['max'])
     
     if 'standard_deviation' not in config:

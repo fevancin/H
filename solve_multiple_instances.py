@@ -30,9 +30,8 @@ for config in configs:
             continue
 
         group_name = group_directory_path.name
-        group_input_directory_path = group_directory_path.joinpath('input')
-
-        for master_instance_file_path in group_input_directory_path.iterdir():
+        
+        for master_instance_file_path in group_directory_path.iterdir():
             
             new_group_directory_path = groups_output_directory_path.joinpath(f'{group_name}_{config['name']}_{master_instance_file_path.stem}')
             if new_group_directory_path.exists():

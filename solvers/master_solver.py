@@ -183,7 +183,7 @@ def get_master_model(instance, additional_info):
         tuples_affected = [(p, s, d) for d in range(min_ws, max_we + 1) for pp, ss, dd in model.do_index if p == pp and s == ss and d == dd]
         return pyo.quicksum(model.do[p, s, d] for p, s, d in tuples_affected) <= 1 + model.window_overlap[p, s, ws, we, wws, wwe]
 
-    if 'use_patient_cut' in additional_info:
+    if 'use_patient_cut' in additional_info or 'minimize_hospital_accesses' in additional_info:
 
         for day in instance['days'].values():
             for care_unit in day.values():
@@ -194,12 +194,14 @@ def get_master_model(instance, additional_info):
                     elif start_time != operator['start']:
                         return
 
-        # optimization_index are on the form (patient, day)
-        optimization_index = set()
+        # pat_day_indexes are on the form (patient, day)
+        pat_days_index = set()
         for patient_name, _, day_name in model.do_index:
-            optimization_index.add((patient_name, int(day_name)))
-        model.optimization_index = pyo.Set(initialize=sorted(optimization_index))
-        
+            pat_days_index.add((patient_name, int(day_name)))
+        model.pat_days_index = pyo.Set(initialize=sorted(pat_days_index))
+    
+    if 'use_patient_cut' in additional_info:
+
         # max_duration[d, c] is the maximum operator duration
         @model.Param(model.days, domain=pyo.NonNegativeIntegers, mutable=False)
         def max_duration(model, d):
@@ -208,9 +210,19 @@ def get_master_model(instance, additional_info):
         # it is impossible for a single patient to do services of a specific care unit
         # with a total duration greater than the longest operator duration of that care unit.
         # This constraint is only valid if every care unit has all its operators that start at the same time.
-        @model.Constraint(model.optimization_index)
+        @model.Constraint(model.pat_days_index)
         def patient_total_duration(model, p, d):
             return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
+
+
+    if 'minimize_hospital_accesses' in additional_info:
+
+        model.pat_use_day = pyo.Var(model.pat_days_index, domain=pyo.Binary)
+
+        @model.Constraint(model.pat_days_index)
+        def if_patient_use_day(model, p, d):
+            tuples_affected = [(p, s, d) for pp, s, dd in model.do_index if pp == p and dd == d]
+            return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in tuples_affected]) <= model.pat_use_day[p, d] * len(tuples_affected)
 
     if 'use_bin_packing' in additional_info:
         add_bin_packing_cuts_to_master_model(model, instance)
@@ -229,15 +241,19 @@ def get_master_model(instance, additional_info):
         @model.Constraint(model.days)
         def compose_function_value(model, d):
             return model.function_value_component[d] == pyo.quicksum(model.do[p, s, dd] * model.service_duration[s] * model.patient_priority[p] for p, s, dd in model.do_index if d == dd)
-        
     else:
         @model.Constraint(model.days)
         def compose_function_value(model, d):
             return model.function_value_component[d] == pyo.quicksum(model.do[p, s, dd] * model.service_duration[s] for p, s, dd in model.do_index if d == dd)
     
-    @model.Objective(sense=pyo.maximize)
-    def total_satisfied_service_durations(model):
-        return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index)
+    if use_priorities and 'minimize_hospital_accesses' in additional_info:
+        @model.Objective(sense=pyo.maximize)
+        def total_satisfied_service_durations(model):
+            return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index) - 1e-3 * pyo.quicksum(model.pat_use_day[p, d] for p, d in model.pat_days_index)
+    else:
+        @model.Objective(sense=pyo.maximize)
+        def total_satisfied_service_durations(model):
+            return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index)
     
     return model
 

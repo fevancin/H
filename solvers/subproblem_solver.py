@@ -201,7 +201,7 @@ def get_subproblem_model(instance, additional_info):
     # constraint that describes the implications:
     # (t[p,s,ws,we] > 0) -> (s[p,s,ws,we] = 1)
     # (s[p,s,ws,we] = 0) -> (t[p,s,ws,we] = 0)
-    # @model.Constraint(model.satisfy_index)
+    @model.Constraint(model.satisfy_index)
     def link_time_to_satisfy_variables(model, p, s):
         c = model.service_care_unit[s]
         return model.time[p, s] <= model.satisfy[p, s] * (model.max_time[c] - model.service_duration[s])
@@ -214,7 +214,7 @@ def get_subproblem_model(instance, additional_info):
         return model.satisfy[p, s] <= model.time[p, s]
 
     # operator start and end times must be respected
-    # @model.Constraint(model.do_index)
+    @model.Constraint(model.do_index)
     def respect_operator_start(model, p, s, c, o):
         return model.operator_start[c, o] * model.do[p, s, c, o] <= model.time[p, s]
     @model.Constraint(model.do_index)
