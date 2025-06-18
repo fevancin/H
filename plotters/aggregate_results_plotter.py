@@ -312,7 +312,7 @@ def plot_results_values_by_instance(groups_directory_path, plot_file_path):
         for iteration_index, solution_value in solution_values.items():
             ys[iteration_index] = solution_value
 
-        instance_name = f'instance_{group_name.split('instance_')[1]}'
+        instance_name = f'instance_{group_name.split('instance')[1]}'
         if instance_name in color_map:
             ax.plot(xs, ys, color=color_map[instance_name], alpha=0.75)
         else:

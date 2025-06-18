@@ -37,7 +37,6 @@ for group_directory_path in groups_directory_path.iterdir():
         if not iteration_analysis_directory_path.is_dir():
             continue
 
-
         final_results_analysis_file_path = iteration_analysis_directory_path.joinpath('final_results_analysis.json')
         with open(final_results_analysis_file_path, 'r') as file:
             final_analysis = json.load(file)
