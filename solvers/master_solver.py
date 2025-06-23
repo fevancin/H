@@ -240,7 +240,7 @@ def get_master_model(instance, additional_info):
     if use_priorities and 'minimize_hospital_accesses' in additional_info:
         @model.Objective(sense=pyo.maximize)
         def total_satisfied_service_durations(model):
-            return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index) - 1e-3 * pyo.quicksum(model.pat_use_day[p, d] for p, d in model.pat_days_index)
+            return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index) - 1 / len(model.pat_days_index) * pyo.quicksum(model.pat_use_day[p, d] for p, d in model.pat_days_index)
     else:
         @model.Objective(sense=pyo.maximize)
         def total_satisfied_service_durations(model):

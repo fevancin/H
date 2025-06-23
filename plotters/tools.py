@@ -221,7 +221,7 @@ def plot_subproblem_results(instance, results, plot_file_path):
 
     slot_height = 2.0
     space_between_lines = 0.2 * slot_height
-    colors = 'rgbcmy'
+    colors = ['r', 'g', 'tab:orange', 'c', 'm', 'y']
 
     # tracks the operator number
     operator_index = 0
