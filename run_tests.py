@@ -65,11 +65,8 @@ for config in configs:
             continue
 
         group_name = group_directory_path.name
-        group_input_directory_path = group_directory_path.joinpath('input')
 
         new_group_directory_path = groups_output_directory_path.joinpath(f'{group_name}_{config['name']}')
-        if new_group_directory_path.exists():
-            shutil.rmtree(new_group_directory_path)
         new_group_directory_path.mkdir()
 
         input_directory_path = new_group_directory_path.joinpath('input')
@@ -77,29 +74,21 @@ for config in configs:
 
         if config['save_results']:
             results_directory_path = new_group_directory_path.joinpath('results')
-            if results_directory_path.exists():
-                shutil.rmtree(results_directory_path)
             results_directory_path.mkdir()
 
         if config['solver_config']['keep_logs']:
             logs_directory_path = new_group_directory_path.joinpath('logs')
-            if logs_directory_path.exists():
-                shutil.rmtree(logs_directory_path)
             logs_directory_path.mkdir()
         
         if config['analyze_instance'] or config['analyze_results']:
             analysis_directory_path = new_group_directory_path.joinpath('analysis')
-            if analysis_directory_path.exists():
-                shutil.rmtree(analysis_directory_path)
             analysis_directory_path.mkdir()
 
         if config['plot_results']:
             plots_directory_path = new_group_directory_path.joinpath('plots')
-            if plots_directory_path.exists():
-                shutil.rmtree(plots_directory_path)
             plots_directory_path.mkdir()
             
-        for instance_file_path in group_input_directory_path.iterdir():
+        for instance_file_path in group_directory_path.iterdir():
             
             with open(instance_file_path, 'r') as file:
                 instance = json.load(file)

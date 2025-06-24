@@ -210,10 +210,9 @@ def get_master_model(instance, additional_info):
 
         model.pat_use_day = pyo.Var(model.pat_days_index, domain=pyo.Binary)
 
-        @model.Constraint(model.pat_days_index)
-        def if_patient_use_day(model, p, d):
-            tuples_affected = [(p, s, d) for pp, s, dd in model.do_index if pp == p and dd == d]
-            return pyo.quicksum([model.do[pp, s, dd] for pp, s, dd in tuples_affected]) <= model.pat_use_day[p, d] * len(tuples_affected)
+        @model.Constraint(model.do_index)
+        def if_patient_use_day(model, p, s, d):
+            return model.do[p, s, d] <= model.pat_use_day[p, d]
 
     if 'use_bin_packing' in additional_info:
         add_bin_packing_cuts_to_master_model(model, instance)
