@@ -514,7 +514,6 @@ def main(group_directory_path, config, config_file_path):
             with open(best_final_results_file_path, 'w') as file:
                 json.dump(final_results, file, indent=4)
 
-
         if config['check_final_results']:
             if config['checks_throw_exceptions']:
                 check_final_results(master_instance, final_results)
@@ -665,15 +664,17 @@ def main(group_directory_path, config, config_file_path):
             
             if config['analyze_cores']:
 
-                # Numero di core dopo le eventuali espansioni.
-                cores_analysis['core_number_post_name_expansion'] = len(current_iteration_cores)
+                if len(current_iteration_cores) > 0:
+                    
+                    # Numero di core dopo le eventuali espansioni.
+                    cores_analysis['core_number_post_name_expansion'] = len(current_iteration_cores)
 
-                total_core_components_number = 0
-                for core in  current_iteration_cores:
-                    total_core_components_number += len(core['components'])
-                
-                # Numero medio di componenti dei core
-                cores_analysis['average_core_size_post_name_expansion'] = total_core_components_number / len(current_iteration_cores)
+                    total_core_components_number = 0
+                    for core in  current_iteration_cores:
+                        total_core_components_number += len(core['components'])
+                    
+                    # Numero medio di componenti dei core
+                    cores_analysis['average_core_size_post_name_expansion'] = total_core_components_number / len(current_iteration_cores)
             
             # Se è presente almeno un core, aggiungi i vincoli nel modello MILP
             # del master.

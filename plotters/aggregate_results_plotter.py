@@ -120,6 +120,9 @@ def plot_cores(cores_directory_path, plot_file_path):
         iteration_index += 1
         iteration_cores_directory_path = cores_directory_path.joinpath(f'iter_{iteration_index}')
 
+    if len(cores_number) == 0:
+        return
+
     _, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 4))
 
     plt.sca(ax1)
