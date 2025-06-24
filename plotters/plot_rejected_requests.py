@@ -99,7 +99,8 @@ for group_directory_path in group_paths:
         plt.fill_between(iteration_indexes, row, '-', label=f'{row_index} rejected', zorder=-row_index)
     
     ax.set_ylim([0, max_day_index + 1])
-    ax.set_xlim([0, len(iteration_indexes) - 1])
+    if len(iteration_indexes) > 1:
+        ax.set_xlim([0, len(iteration_indexes) - 1])
     plt.yticks([i for i in range(max_day_index + 2)], [i for i in range(max_day_index + 2)])
 
     ax.set(xlabel='Iteration', ylabel='Day number')

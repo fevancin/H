@@ -114,99 +114,99 @@ def plot_master_results(instance, results, plot_file_path):
     ax1.set_ylabel('Total request slots', weight='bold', labelpad=8)
 
     # draw lower graphic (patient protocol requests)
-    plt.sca(ax2)
+    # plt.sca(ax2)
 
-    # vertical position of the boxes
-    request_y_position = 0
+    # # vertical position of the boxes
+    # request_y_position = 0
 
-    slot_height = 1.0
-    space_between_rows = slot_height * 0.2
+    # slot_height = 1.0
+    # space_between_rows = slot_height * 0.2
 
-    request_labels = {}
-    request_y_positions = {}
+    # request_labels = {}
+    # request_y_positions = {}
 
-    # draw request intervals
-    for patient_name, patient in instance['patients'].items():
-        for protocol in patient['protocols'].values():
-            initial_shift = protocol['initial_shift']
-            for service_protocol in protocol['protocol_services']:
+    # # draw request intervals
+    # for patient_name, patient in instance['patients'].items():
+    #     for protocol in patient['protocols'].values():
+    #         initial_shift = protocol['initial_shift']
+    #         for service_protocol in protocol['protocol_services']:
 
-                service_start = service_protocol['start']
-                frequency = service_protocol['frequency']
-                tolerance = service_protocol['tolerance']
-                care_unit_name = instance['services'][service_protocol['service']]['care_unit']
+    #             service_start = service_protocol['start']
+    #             frequency = service_protocol['frequency']
+    #             tolerance = service_protocol['tolerance']
+    #             care_unit_name = instance['services'][service_protocol['service']]['care_unit']
                 
-                request_labels[request_y_position + 0.5 * slot_height] = f'{patient_name} - {service_protocol["service"]}'
-                request_y_positions[(patient_name, service_protocol['service'])] = request_y_position + 0.5 * slot_height
+    #             request_labels[request_y_position + 0.5 * slot_height] = f'{patient_name} - {service_protocol["service"]}'
+    #             request_y_positions[(patient_name, service_protocol['service'])] = request_y_position + 0.5 * slot_height
 
-                for index in range(service_protocol['times']):
+    #             for index in range(service_protocol['times']):
 
-                    start = initial_shift + service_start + frequency * index - tolerance
-                    end = initial_shift + service_start + frequency * index + tolerance + 1
+    #                 start = initial_shift + service_start + frequency * index - tolerance
+    #                 end = initial_shift + service_start + frequency * index + tolerance + 1
 
-                    # clamp the window to [0; day_number] and discard fully-outside windows
-                    if start >= day_number:
-                        continue
-                    if start < 0:
-                        start = 0
-                        if end < 0:
-                            continue
-                    if end < 0:
-                        continue
-                    if end > day_number:
-                        end = day_number
-                        if start > day_number:
-                            continue
+    #                 # clamp the window to [0; day_number] and discard fully-outside windows
+    #                 if start >= day_number:
+    #                     continue
+    #                 if start < 0:
+    #                     start = 0
+    #                     if end < 0:
+    #                         continue
+    #                 if end < 0:
+    #                     continue
+    #                 if end > day_number:
+    #                     end = day_number
+    #                     if start > day_number:
+    #                         continue
                     
-                    start_day_len = len(instance['days'][str(start)])
-                    if end == day_number:
-                        end_day_len = 0
-                    else:
-                        end_day_len = len(instance['days'][str(end)])
+    #                 start_day_len = len(instance['days'][str(start)])
+    #                 if end == day_number:
+    #                     end_day_len = 0
+    #                 else:
+    #                     end_day_len = len(instance['days'][str(end)])
 
-                    start = day_x_positions[str(start)] - start_day_len * slot_width * 0.5
-                    end = day_x_positions[str(end)] - end_day_len * slot_width * 0.5
+    #                 start = day_x_positions[str(start)] - start_day_len * slot_width * 0.5
+    #                 end = day_x_positions[str(end)] - end_day_len * slot_width * 0.5
 
-                    plt.hlines(
-                        xmin=start, xmax=end,
-                        y=request_y_position + space_between_rows + (slot_height - space_between_rows) * 0.5,
-                        lw=2, colors=care_unit_colors[care_unit_name], zorder=2)
-                    plt.vlines(
-                        x=start,
-                        ymin=request_y_position + space_between_rows + space_between_rows,
-                        ymax=request_y_position + space_between_rows + (slot_height - space_between_rows * 2),
-                        lw=1.5, colors=care_unit_colors[care_unit_name], zorder=2)
-                    plt.vlines(
-                        x=end,
-                        ymin=request_y_position + space_between_rows + space_between_rows,
-                        ymax=request_y_position + space_between_rows + (slot_height - space_between_rows * 2),
-                        lw=1.5, colors=care_unit_colors[care_unit_name], zorder=2)
+    #                 plt.hlines(
+    #                     xmin=start, xmax=end,
+    #                     y=request_y_position + space_between_rows + (slot_height - space_between_rows) * 0.5,
+    #                     lw=2, colors=care_unit_colors[care_unit_name], zorder=2)
+    #                 plt.vlines(
+    #                     x=start,
+    #                     ymin=request_y_position + space_between_rows + space_between_rows,
+    #                     ymax=request_y_position + space_between_rows + (slot_height - space_between_rows * 2),
+    #                     lw=1.5, colors=care_unit_colors[care_unit_name], zorder=2)
+    #                 plt.vlines(
+    #                     x=end,
+    #                     ymin=request_y_position + space_between_rows + space_between_rows,
+    #                     ymax=request_y_position + space_between_rows + (slot_height - space_between_rows * 2),
+    #                     lw=1.5, colors=care_unit_colors[care_unit_name], zorder=2)
 
-                request_y_position += slot_height
+    #             request_y_position += slot_height
 
-    # draw black marks where services are scheduled
-    for day_name, day_requests in results['scheduled'].items():
-        for request in day_requests:
-            patient_name = request['patient']
-            service_name = request['service']
-            care_unit_name = instance['services'][service_name]['care_unit']
-            day_len = len(instance['days'][day_name])
-            pos = day_x_positions[day_name]
-            plt.plot(pos, request_y_positions[(patient_name, service_name)] + space_between_rows * 0.5, 'x', color='k')
+    # # draw black marks where services are scheduled
+    # for day_name, day_requests in results['scheduled'].items():
+    #     for request in day_requests:
+    #         patient_name = request['patient']
+    #         service_name = request['service']
+    #         care_unit_name = instance['services'][service_name]['care_unit']
+    #         day_len = len(instance['days'][day_name])
+    #         pos = day_x_positions[day_name]
+    #         plt.plot(pos, request_y_positions[(patient_name, service_name)] + space_between_rows * 0.5, 'x', color='k')
 
-    # draw thin vertical lines between each day
-    for day_name, day in instance['days'].items():
-        plt.vlines(x=(day_x_positions[day_name] - len(day) * slot_width * 0.5), ymin = 0, ymax=request_y_position, colors='grey', lw=0.5, ls=':', zorder=0)
-    # last day right vertical line
-    plt.vlines(x=(last_care_unit_x_position + space_between_days * 0.5), ymin = 0, ymax=request_y_position, colors='grey', lw=0.5, ls=':', zorder=0)
+    # # draw thin vertical lines between each day
+    # for day_name, day in instance['days'].items():
+    #     plt.vlines(x=(day_x_positions[day_name] - len(day) * slot_width * 0.5), ymin = 0, ymax=request_y_position, colors='grey', lw=0.5, ls=':', zorder=0)
+    # # last day right vertical line
+    # plt.vlines(x=(last_care_unit_x_position + space_between_days * 0.5), ymin = 0, ymax=request_y_position, colors='grey', lw=0.5, ls=':', zorder=0)
 
-    # add axis ticks
-    ax2.set_xticks(list(day_x_positions.values())[:-1], labels=list(care_unit_x_positions.keys()))
-    plt.yticks([])
+    # # add axis ticks
+    # ax2.set_xticks(list(day_x_positions.values())[:-1], labels=list(care_unit_x_positions.keys()))
+    # plt.yticks([])
     
-    ax2.set_title('Patient request windows')
-    ax2.set_xlabel('Days', weight='bold', labelpad=6)
-    ax2.set_ylabel('Requests', weight='bold', labelpad=8)
+    # ax2.set_title('Patient request windows')
+    # ax2.set_xlabel('Days', weight='bold', labelpad=6)
+    # ax2.set_ylabel('Requests', weight='bold', labelpad=8)
 
     fig.suptitle(f'Plot of {plot_file_path.stem.removesuffix("_plot")}', weight='bold')
 

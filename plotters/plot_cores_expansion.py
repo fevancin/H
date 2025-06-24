@@ -93,6 +93,9 @@ for group_directory_path in group_paths:
     plt.savefig(plot_file_path)
     plt.close('all')
 
+    if len(cores_data) == 0:
+        continue
+
     with open(analysis_directory_path.joinpath('cores.csv'), 'w', newline='') as file:
         fieldnames = list(cores_data[0].keys())
         writer = csv.DictWriter(file, fieldnames=fieldnames)

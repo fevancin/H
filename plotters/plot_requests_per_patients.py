@@ -107,7 +107,8 @@ for group_directory_path in group_paths:
         plt.fill_between(iteration_indexes, row, '-', label=f'{numbers[row_index]} requests', zorder=-row_index)
     
     # ax.set_ylim([0, max_day_index + 1])
-    ax.set_xlim([0, len(iteration_indexes) - 1])
+    if len(iteration_indexes) > 1:
+        ax.set_xlim([0, len(iteration_indexes) - 1])
     ax.set_yticks([i * max_value_in_graph / 10 for i in range(10)], [i * max_value_in_graph / 10 for i in range(10)])
 
     ax.set(xlabel='Iteration', ylabel='Patient number')
