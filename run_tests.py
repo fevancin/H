@@ -67,26 +67,26 @@ for config in configs:
         group_name = group_directory_path.name
 
         new_group_directory_path = groups_output_directory_path.joinpath(f'{group_name}_{config['name']}')
-        new_group_directory_path.mkdir()
+        new_group_directory_path.mkdir(exist_ok=True)
 
         input_directory_path = new_group_directory_path.joinpath('input')
-        input_directory_path.mkdir()
+        input_directory_path.mkdir(exist_ok=True)
 
         if config['save_results']:
             results_directory_path = new_group_directory_path.joinpath('results')
-            results_directory_path.mkdir()
+            results_directory_path.mkdir(exist_ok=True)
 
         if config['solver_config']['keep_logs']:
             logs_directory_path = new_group_directory_path.joinpath('logs')
-            logs_directory_path.mkdir()
+            logs_directory_path.mkdir(exist_ok=True)
         
         if config['analyze_instance'] or config['analyze_results']:
             analysis_directory_path = new_group_directory_path.joinpath('analysis')
-            analysis_directory_path.mkdir()
+            analysis_directory_path.mkdir(exist_ok=True)
 
         if config['plot_results']:
             plots_directory_path = new_group_directory_path.joinpath('plots')
-            plots_directory_path.mkdir()
+            plots_directory_path.mkdir(exist_ok=True)
             
         for instance_file_path in group_directory_path.iterdir():
             
