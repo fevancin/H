@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-import argparse
 import json
 import time
 import yaml
@@ -21,9 +20,6 @@ from cores.compute_cores import compute_dumb_cores, compute_basic_cores, compute
 from cores.compute_cores import add_cores_constraint_class_to_master_model, add_cores_constraints_to_master_model
 from cores.expand_core_days import compute_expanded_days, expand_core_days, remove_core_days_without_exact_requests
 from cores.expand_core_patients_services import get_max_possible_master_requests, expand_core_patients_services
-
-from plotters.tools import plot_master_results
-from plotters.tools import plot_subproblem_results
 
 from analyzers.tools import get_master_results_value, get_subproblem_results_value
 from analyzers.master_instance_analyzer import analyze_master_instance
@@ -160,29 +156,7 @@ def compose_final_results(master_instance, master_results, all_subproblem_result
     return final_results
 
 
-def main(group_directory_path, config, config_file_path):
-
-    input_directory_path = group_directory_path.joinpath('input')
-    if not input_directory_path.exists():
-        raise ValueError(f'Input directory \'{input_directory_path}\' does not exists')
-    elif not input_directory_path.is_dir():
-        raise ValueError(f'Input \'{input_directory_path}\' is not a directory')
-
-    master_instance_file_path = None
-    for file_path in input_directory_path.iterdir():
-
-        if not file_path.is_file() or file_path.suffix != '.json':
-            continue
-
-        master_instance_file_path = file_path
-        break
-
-    if master_instance_file_path is None:
-        print(f'Master instance not found in directory \'{input_directory_path}\'')
-        exit(0)
-
-    with open(master_instance_file_path, 'r') as file:
-        master_instance = json.load(file)
+def solve_instance(master_instance, output_directory_path: Path, config: dict):
 
     if config['checks_throw_exceptions']:
         check_master_instance(master_instance)
@@ -191,34 +165,30 @@ def main(group_directory_path, config, config_file_path):
             check_master_instance(master_instance)
         except Exception as exception:
             print(exception)
+    
+    if output_directory_path.exists():
+        shutil.rmtree(output_directory_path)
 
-    shutil.rmtree(input_directory_path)
+    input_directory_path = output_directory_path.joinpath('input')
     input_directory_path.mkdir()
 
+    results_directory_path = output_directory_path.joinpath('results')
+    results_directory_path.mkdir(exist_ok=True)
+
+    cores_directory_path = output_directory_path.joinpath('cores')
+    cores_directory_path.mkdir(exist_ok=True)
+
+    logs_directory_path = output_directory_path.joinpath('logs')
+    logs_directory_path.mkdir(exist_ok=True)
+
+    analysis_directory_path = output_directory_path.joinpath('analysis')
+    analysis_directory_path.mkdir(exist_ok=True)
+
+    master_instance_file_path = input_directory_path.joinpath('master_instance.json')
     with open(master_instance_file_path, 'w') as file:
         json.dump(master_instance, file, indent=4)
 
-    results_directory_path = group_directory_path.joinpath('results')
-    if results_directory_path.exists():
-        shutil.rmtree(results_directory_path)
-    results_directory_path.mkdir()
-
-    cores_directory_path = group_directory_path.joinpath('cores')
-    if cores_directory_path.exists():
-        shutil.rmtree(cores_directory_path)
-    cores_directory_path.mkdir()
-
-    logs_directory_path = group_directory_path.joinpath('logs')
-    if logs_directory_path.exists():
-        shutil.rmtree(logs_directory_path)
-    logs_directory_path.mkdir()
-
-    analysis_directory_path = group_directory_path.joinpath('analysis')
-    if analysis_directory_path.exists():
-        shutil.rmtree(analysis_directory_path)
-    analysis_directory_path.mkdir()
-
-    solver_config_file_path = group_directory_path.joinpath('main_config.yaml')
+    solver_config_file_path = output_directory_path.joinpath('solver_config.yaml')
     with open(solver_config_file_path, 'w') as file:
         yaml.dump(config, file, default_flow_style=False, sort_keys=False)
 
@@ -227,7 +197,7 @@ def main(group_directory_path, config, config_file_path):
     with open(master_instance_analysis_file_path, 'w') as file:
         json.dump(master_instance_analysis, file, indent=4)
 
-    print(f'Solving instance \'{master_instance_file_path}\' with configuration from \'{config_file_path}\'')
+    print(f'Solving instance \'{master_instance_file_path}\' with configuration from \'{solver_config_file_path}\'')
     total_start_time = time.perf_counter()
 
     max_possible_master_requests = get_max_possible_master_requests(master_instance)
@@ -238,7 +208,7 @@ def main(group_directory_path, config, config_file_path):
         with open(expanded_days_file_path, 'w') as file:
             json.dump(expanded_days, file, indent=4)
 
-    print(f'Start master model creation...', end='')
+    print(f'Start master model creation... ', end='')
     master_model_creation_start_time = time.perf_counter()
 
     master_model = get_master_model(master_instance, config['additional_master_info'])
@@ -249,7 +219,7 @@ def main(group_directory_path, config, config_file_path):
         add_objective_value_constraint_class(master_model)
 
     master_model_creation_end_time = time.perf_counter()
-    print(f'end. Took {master_model_creation_end_time - master_model_creation_start_time} seconds.')
+    print(f'end ({master_model_creation_end_time - master_model_creation_start_time}s).')
 
     master_opt = pyo.SolverFactory(config['master_config']['solver'])
 
@@ -286,14 +256,14 @@ def main(group_directory_path, config, config_file_path):
         iteration_analysis_directory_path = analysis_directory_path.joinpath(f'iter_{iteration_index}')
         iteration_analysis_directory_path.mkdir()
         
-        print(f'[iter {iteration_index}] Start master solving process...', end='')
+        print(f'[iter {iteration_index}] Start master solving process... ', end='')
         master_solving_start_time = time.perf_counter()
         
         log_file_path = iteration_logs_directory_path.joinpath('master_log.log')
         master_model_results = master_opt.solve(master_model, tee=False, warmstart=config['warm_start_master'], logfile=log_file_path)
 
         master_solving_end_time = time.perf_counter()
-        print(f'end. Took {master_solving_end_time - master_solving_start_time} seconds.')
+        print(f'end ({master_solving_end_time - master_solving_start_time}s).')
 
         master_model.solutions.store_to(master_model_results)
         solution = master_model_results.solution[0]
@@ -359,13 +329,13 @@ def main(group_directory_path, config, config_file_path):
             with open(subproblem_instance_analysis_file_name, 'w') as file:
                 json.dump(subproblem_instance_analysis, file, indent=4)
 
-            print(f'[iter {iteration_index}] Start subproblem model creation for day \'{day_name}\'...', end='')
+            print(f'[iter {iteration_index}] Start subproblem model creation for day \'{day_name}\'... ', end='')
             subproblem_model_creation_start_time = time.perf_counter()
 
             subproblem_model = get_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
 
             subproblem_model_creation_end_time = time.perf_counter()
-            print(f'end. Took {subproblem_model_creation_end_time - subproblem_model_creation_start_time} seconds.')
+            print(f'end ({subproblem_model_creation_end_time - subproblem_model_creation_start_time}s).')
 
             subproblem_opt = pyo.SolverFactory(config['subproblem_config']['solver'])
 
@@ -377,14 +347,14 @@ def main(group_directory_path, config, config_file_path):
             if 'max_memory' in config['subproblem_config']:
                 subproblem_opt.options['SoftMemLimit'] = config['subproblem_config']['max_memory']
 
-            print(f'[iter {iteration_index}] Start subproblem solving process for day \'{day_name}\'...', end='')
+            print(f'[iter {iteration_index}] Start subproblem solving process for day \'{day_name}\'... ', end='')
             subproblem_solving_start_time = time.perf_counter()
             
             log_file_path = iteration_logs_directory_path.joinpath(f'subproblem_day_{day_name}_log.log')
             subproblem_model_results = subproblem_opt.solve(subproblem_model, tee=False, logfile=log_file_path)
 
             subproblem_solving_end_time = time.perf_counter()
-            print(f'end. Took {subproblem_solving_end_time - subproblem_solving_start_time} seconds.')
+            print(f'end ({subproblem_solving_end_time - subproblem_solving_start_time}s).')
 
             subproblem_model.solutions.store_to(subproblem_model_results)
             solution = subproblem_model_results.solution[0]

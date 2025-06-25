@@ -5,7 +5,7 @@ import shutil
 import yaml
 import copy
 
-from solve_single_instance import main
+from solve_single_instance import solve_instance
 
 
 if __name__ != '__main__':
@@ -46,21 +46,13 @@ for config_name, config_changes in configs['groups'].items():
             continue
         
         for master_instance_file_path in group_directory_path.iterdir():
+
+            if master_instance_file_path.suffix != '.json':
+                continue
             
             new_group_directory_path = groups_output_directory_path.joinpath(f'{group_name}_{config_name}_{master_instance_file_path.stem}')
-            if new_group_directory_path.exists():
-                shutil.rmtree(new_group_directory_path)
-            new_group_directory_path.mkdir()
-
-            new_input_directory_path = new_group_directory_path.joinpath('input')
-            new_input_directory_path.mkdir()
             
             with open(master_instance_file_path, 'r') as file:
                 master_instance = json.load(file)
             
-            new_master_instance_file_path = new_input_directory_path.joinpath(master_instance_file_path.name)
-            with open(new_master_instance_file_path, 'w') as file:
-                json.dump(master_instance, file, indent=4)
-            
-            print(f'Start solving instance {master_instance_file_path.name}')
-            main(new_group_directory_path, config, config_name)
+            solve_instance(master_instance, new_group_directory_path, config)

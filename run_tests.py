@@ -1,7 +1,6 @@
 import argparse
 from pathlib import Path
 import yaml
-import shutil
 import json
 import time
 import pyomo.environ as pyo

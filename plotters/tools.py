@@ -2,7 +2,6 @@ from pathlib import Path
 import argparse
 import json
 import time
-import shutil
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.patches import Patch
@@ -390,9 +389,7 @@ def common_main_plotter(command_name, create_plot_function, create_subproblem_pl
         raise ValueError(f'Input \'{results_directory_path}\' is not a directory')
 
     plots_directory_path = group_directory_path.joinpath('plots')
-    if plots_directory_path.exists():
-        shutil.rmtree(plots_directory_path)
-    plots_directory_path.mkdir()
+    plots_directory_path.mkdir(exist_ok=True)
     
     if is_verbose:
         print(f'Plotting data in directory \'{group_directory_path}\'')
