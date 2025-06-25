@@ -184,14 +184,13 @@ def main(group_directory_path, config, config_file_path):
     with open(master_instance_file_path, 'r') as file:
         master_instance = json.load(file)
 
-    if config['check_master_instance']:
-        if config['checks_throw_exceptions']:
+    if config['checks_throw_exceptions']:
+        check_master_instance(master_instance)
+    else:
+        try:
             check_master_instance(master_instance)
-        else:
-            try:
-                check_master_instance(master_instance)
-            except Exception as exception:
-                print(exception)
+        except Exception as exception:
+            print(exception)
 
     shutil.rmtree(input_directory_path)
     input_directory_path.mkdir()
@@ -199,75 +198,58 @@ def main(group_directory_path, config, config_file_path):
     with open(master_instance_file_path, 'w') as file:
         json.dump(master_instance, file, indent=4)
 
-    if config['save_master_results'] or config['save_subproblem_results'] or config['save_final_results']:
-        results_directory_path = group_directory_path.joinpath('results')
-        if results_directory_path.exists():
-            shutil.rmtree(results_directory_path)
-        results_directory_path.mkdir()
+    results_directory_path = group_directory_path.joinpath('results')
+    if results_directory_path.exists():
+        shutil.rmtree(results_directory_path)
+    results_directory_path.mkdir()
 
-    if config['use_cores']:
-        cores_directory_path = group_directory_path.joinpath('cores')
-        if cores_directory_path.exists():
-            shutil.rmtree(cores_directory_path)
-        cores_directory_path.mkdir()
+    cores_directory_path = group_directory_path.joinpath('cores')
+    if cores_directory_path.exists():
+        shutil.rmtree(cores_directory_path)
+    cores_directory_path.mkdir()
 
-    if config['master_config']['keep_logs'] or config['subproblem_config']['keep_logs']:
-        logs_directory_path = group_directory_path.joinpath('logs')
-        if logs_directory_path.exists():
-            shutil.rmtree(logs_directory_path)
-        logs_directory_path.mkdir()
+    logs_directory_path = group_directory_path.joinpath('logs')
+    if logs_directory_path.exists():
+        shutil.rmtree(logs_directory_path)
+    logs_directory_path.mkdir()
 
-    if config['analyze_master_instance'] or config['analyze_master_results'] or config['analyze_subproblem_instance'] or config['analyze_subproblem_results'] or config['analyze_final_results']:
-        analysis_directory_path = group_directory_path.joinpath('analysis')
-        if analysis_directory_path.exists():
-            shutil.rmtree(analysis_directory_path)
-        analysis_directory_path.mkdir()
-
-    if config['plot_master_results'] or config['plot_subproblem_results'] or config['plot_final_results']:
-        plots_directory_path = group_directory_path.joinpath('plots')
-        if plots_directory_path.exists():
-            shutil.rmtree(plots_directory_path)
-        plots_directory_path.mkdir()
+    analysis_directory_path = group_directory_path.joinpath('analysis')
+    if analysis_directory_path.exists():
+        shutil.rmtree(analysis_directory_path)
+    analysis_directory_path.mkdir()
 
     solver_config_file_path = group_directory_path.joinpath('main_config.yaml')
     with open(solver_config_file_path, 'w') as file:
         yaml.dump(config, file, default_flow_style=False, sort_keys=False)
 
-    if config['analyze_master_instance']:
-        master_instance_analysis = analyze_master_instance(master_instance, master_instance_file_path)
-        master_instance_analysis_file_path = analysis_directory_path.joinpath('master_instance_analysis.json')
-        with open(master_instance_analysis_file_path, 'w') as file:
-            json.dump(master_instance_analysis, file, indent=4)
+    master_instance_analysis = analyze_master_instance(master_instance, master_instance_file_path)
+    master_instance_analysis_file_path = analysis_directory_path.joinpath('master_instance_analysis.json')
+    with open(master_instance_analysis_file_path, 'w') as file:
+        json.dump(master_instance_analysis, file, indent=4)
 
     print(f'Solving instance \'{master_instance_file_path}\' with configuration from \'{config_file_path}\'')
     total_start_time = time.perf_counter()
 
-    if config['use_cores'] or 'use_objective_value_constraints' in config['master_config']['additional_info']:
-        max_possible_master_requests = get_max_possible_master_requests(master_instance)
+    max_possible_master_requests = get_max_possible_master_requests(master_instance)
 
-    if config['use_cores']:
-        if config['expand_core_days']:
-            expanded_days = compute_expanded_days(master_instance)
-            if config['save_expanded_days']:
-                expanded_days_file_path = cores_directory_path.joinpath('expanded_days.json')
-                with open(expanded_days_file_path, 'w') as file:
-                    json.dump(expanded_days, file, indent=4)
+    if config['expand_core_days']:
+        expanded_days = compute_expanded_days(master_instance)
+        expanded_days_file_path = cores_directory_path.joinpath('expanded_days.json')
+        with open(expanded_days_file_path, 'w') as file:
+            json.dump(expanded_days, file, indent=4)
 
-    if config['print_time_taken_by_master_creation']:
-        print(f'Start master model creation...', end='')
+    print(f'Start master model creation...', end='')
     master_model_creation_start_time = time.perf_counter()
 
-    master_model = get_master_model(master_instance, config['master_config']['additional_info'])
+    master_model = get_master_model(master_instance, config['additional_master_info'])
 
-    if config['use_cores']:
-        add_cores_constraint_class_to_master_model(master_model)
+    add_cores_constraint_class_to_master_model(master_model)
     
-    if 'use_objective_value_constraints' in config['master_config']['additional_info']:
+    if 'use_objective_value_constraints' in config['additional_master_info']:
         add_objective_value_constraint_class(master_model)
 
     master_model_creation_end_time = time.perf_counter()
-    if config['print_time_taken_by_master_creation']:
-        print(f'end. Took {master_model_creation_end_time - master_model_creation_start_time} seconds.')
+    print(f'end. Took {master_model_creation_end_time - master_model_creation_start_time} seconds.')
 
     master_opt = pyo.SolverFactory(config['master_config']['solver'])
 
@@ -280,10 +262,7 @@ def main(group_directory_path, config, config_file_path):
         master_opt.options['SoftMemLimit'] = config['master_config']['max_memory']
 
     iteration_index = 0
-    if config['use_cores']:
-        max_iteration_number = config['max_iteration_number']
-    else:
-        max_iteration_number = 1
+    max_iteration_number = config['max_iteration_number']
 
     all_iterations_cores = []
 
@@ -292,49 +271,29 @@ def main(group_directory_path, config, config_file_path):
 
     while iteration_index < max_iteration_number:
 
-        if config['save_subproblem_instance']:
-            iteration_input_directory_path = input_directory_path.joinpath(f'iter_{iteration_index}')
-            iteration_input_directory_path.mkdir()
+        iteration_input_directory_path = input_directory_path.joinpath(f'iter_{iteration_index}')
+        iteration_input_directory_path.mkdir()
 
-        if config['save_master_results'] or config['save_subproblem_results'] or config['save_final_results']:
-            iteration_results_directory_path = results_directory_path.joinpath(f'iter_{iteration_index}')
-            iteration_results_directory_path.mkdir()
+        iteration_results_directory_path = results_directory_path.joinpath(f'iter_{iteration_index}')
+        iteration_results_directory_path.mkdir()
 
-        if config['use_cores'] and config['save_cores']:
-            iteration_cores_directory_path = cores_directory_path.joinpath(f'iter_{iteration_index}')
-            iteration_cores_directory_path.mkdir()
+        iteration_cores_directory_path = cores_directory_path.joinpath(f'iter_{iteration_index}')
+        iteration_cores_directory_path.mkdir()
 
-        if config['master_config']['keep_logs'] or config['subproblem_config']['keep_logs']:
-            iteration_logs_directory_path = logs_directory_path.joinpath(f'iter_{iteration_index}')
-            iteration_logs_directory_path.mkdir()
+        iteration_logs_directory_path = logs_directory_path.joinpath(f'iter_{iteration_index}')
+        iteration_logs_directory_path.mkdir()
 
-        if config['analyze_master_results'] or config['analyze_subproblem_instance'] or config['analyze_subproblem_results'] or config['analyze_final_results']:
-            iteration_analysis_directory_path = analysis_directory_path.joinpath(f'iter_{iteration_index}')
-            iteration_analysis_directory_path.mkdir()
+        iteration_analysis_directory_path = analysis_directory_path.joinpath(f'iter_{iteration_index}')
+        iteration_analysis_directory_path.mkdir()
         
-        if config['plot_master_results'] or config['plot_subproblem_results'] or config['plot_final_results']:
-            iteration_plots_directory_path = plots_directory_path.joinpath(f'iter_{iteration_index}')
-            iteration_plots_directory_path.mkdir()
-        
-        if config['print_time_taken_by_master_solver']:
-            if config['print_master_solver_output']:
-                print(f'[iter {iteration_index}] Start master solving process')
-            else:
-                print(f'[iter {iteration_index}] Start master solving process...', end='')
+        print(f'[iter {iteration_index}] Start master solving process...', end='')
         master_solving_start_time = time.perf_counter()
         
-        if config['master_config']['keep_logs']:
-            log_file_path = iteration_logs_directory_path.joinpath('master_log.log')
-            master_model_results = master_opt.solve(master_model, tee=config['print_master_solver_output'], warmstart=config['warm_start_master'], logfile=log_file_path)
-        else:
-            master_model_results = master_opt.solve(master_model, tee=config['print_master_solver_output'], warmstart=config['warm_start_master'])
-        
+        log_file_path = iteration_logs_directory_path.joinpath('master_log.log')
+        master_model_results = master_opt.solve(master_model, tee=False, warmstart=config['warm_start_master'], logfile=log_file_path)
+
         master_solving_end_time = time.perf_counter()
-        if config['print_time_taken_by_master_solver']:
-            if config['print_master_solver_output']:
-                print(f'[iter {iteration_index}] End master solving process. Took {master_solving_end_time - master_solving_start_time} seconds.')
-            else:
-                print(f'end. Took {master_solving_end_time - master_solving_start_time} seconds.')
+        print(f'end. Took {master_solving_end_time - master_solving_start_time} seconds.')
 
         master_model.solutions.store_to(master_model_results)
         solution = master_model_results.solution[0]
@@ -358,68 +317,55 @@ def main(group_directory_path, config, config_file_path):
             'objective_function_value': value
         }}
 
-        master_results.update(get_results_from_master_model(master_model, config['master_config']['additional_info']))
+        master_results.update(get_results_from_master_model(master_model, config['additional_master_info']))
 
-        if config['save_master_results']:
-            master_results_file_path = iteration_results_directory_path.joinpath('master_results.json')
-            with open(master_results_file_path, 'w') as file:
-                json.dump(master_results, file, indent=4)
+        master_results_file_path = iteration_results_directory_path.joinpath('master_results.json')
+        with open(master_results_file_path, 'w') as file:
+            json.dump(master_results, file, indent=4)
         
-        if config['check_master_results']:
-            if config['checks_throw_exceptions']:
+        if config['checks_throw_exceptions']:
+            check_master_results(master_instance, master_results)
+        else:
+            try:
                 check_master_results(master_instance, master_results)
-            else:
-                try:
-                    check_master_results(master_instance, master_results)
-                except Exception as exception:
-                    print(exception)
+            except Exception as exception:
+                print(exception)
 
-        if config['analyze_master_results']:
-            master_results_analysis = analyze_master_results(master_instance, master_results, master_instance_file_path)
-            master_results_analysis_file_name = iteration_analysis_directory_path.joinpath('master_results_analysis.json')
-            with open(master_results_analysis_file_name, 'w') as file:
-                json.dump(master_results_analysis, file, indent=4)
-
-        if config['plot_master_results']:
-            master_plot_file_name = iteration_plots_directory_path.joinpath(f'master_results_plot.png')
-            plot_master_results(master_instance, master_results, master_plot_file_name)
+        master_results_analysis = analyze_master_results(master_instance, master_results, master_instance_file_path)
+        master_results_analysis_file_name = iteration_analysis_directory_path.joinpath('master_results_analysis.json')
+        with open(master_results_analysis_file_name, 'w') as file:
+            json.dump(master_results_analysis, file, indent=4)
 
         all_subproblem_results = {}
         for day_name in master_results['scheduled'].keys():
             
             subproblem_instance = compute_subproblem_instance_from_master(master_instance, master_results, day_name)
             
-            if config['save_subproblem_instance'] or config['analyze_subproblem_results'] or config['analyze_subproblem_instance']:
-                subproblem_instance_file_path = iteration_input_directory_path.joinpath(f'subproblem_day_{day_name}.json')
+            subproblem_instance_file_path = iteration_input_directory_path.joinpath(f'subproblem_day_{day_name}.json')
             
-            if config['save_subproblem_instance']:
-                with open(subproblem_instance_file_path, 'w') as file:
-                    json.dump(subproblem_instance, file, indent=4)
+            with open(subproblem_instance_file_path, 'w') as file:
+                json.dump(subproblem_instance, file, indent=4)
             
-            if config['check_subproblem_instances']:
-                if config['checks_throw_exceptions']:
+            if config['checks_throw_exceptions']:
+                check_subproblem_instance(subproblem_instance)
+            else:
+                try:
                     check_subproblem_instance(subproblem_instance)
-                else:
-                    try:
-                        check_subproblem_instance(subproblem_instance)
-                    except Exception as exception:
-                        print(exception)
+                except Exception as exception:
+                    print(exception)
 
-            if config['analyze_subproblem_instance']:
-                subproblem_instance_analysis = analyze_subproblem_instance(subproblem_instance, subproblem_instance_file_path)
-                subproblem_instance_analysis_file_name = iteration_analysis_directory_path.joinpath('subproblem_instance_analysis.json')
-                with open(subproblem_instance_analysis_file_name, 'w') as file:
-                    json.dump(subproblem_instance_analysis, file, indent=4)
+            subproblem_instance_analysis = analyze_subproblem_instance(subproblem_instance, subproblem_instance_file_path)
+            subproblem_instance_analysis_file_name = iteration_analysis_directory_path.joinpath('subproblem_instance_analysis.json')
+            with open(subproblem_instance_analysis_file_name, 'w') as file:
+                json.dump(subproblem_instance_analysis, file, indent=4)
 
-            if config['print_time_taken_by_subproblem_creation']:
-                print(f'[iter {iteration_index}] Start subproblem model creation for day \'{day_name}\'...', end='')
+            print(f'[iter {iteration_index}] Start subproblem model creation for day \'{day_name}\'...', end='')
             subproblem_model_creation_start_time = time.perf_counter()
 
-            subproblem_model = get_subproblem_model(subproblem_instance, config['subproblem_config']['additional_info'])
+            subproblem_model = get_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
 
             subproblem_model_creation_end_time = time.perf_counter()
-            if config['print_time_taken_by_subproblem_creation']:
-                print(f'end. Took {subproblem_model_creation_end_time - subproblem_model_creation_start_time} seconds.')
+            print(f'end. Took {subproblem_model_creation_end_time - subproblem_model_creation_start_time} seconds.')
 
             subproblem_opt = pyo.SolverFactory(config['subproblem_config']['solver'])
 
@@ -431,25 +377,14 @@ def main(group_directory_path, config, config_file_path):
             if 'max_memory' in config['subproblem_config']:
                 subproblem_opt.options['SoftMemLimit'] = config['subproblem_config']['max_memory']
 
-            if config['print_time_taken_by_subproblem_solver']:
-                if config['print_subproblem_solver_output']:
-                    print(f'[iter {iteration_index}] Start subproblem solving process for day \'{day_name}\'')
-                else:
-                    print(f'[iter {iteration_index}] Start subproblem solving process for day \'{day_name}\'...', end='')
+            print(f'[iter {iteration_index}] Start subproblem solving process for day \'{day_name}\'...', end='')
             subproblem_solving_start_time = time.perf_counter()
             
-            if config['subproblem_config']['keep_logs']:
-                log_file_path = iteration_logs_directory_path.joinpath(f'subproblem_day_{day_name}_log.log')
-                subproblem_model_results = subproblem_opt.solve(subproblem_model, tee=config['print_subproblem_solver_output'], logfile=log_file_path)
-            else:
-                subproblem_model_results = subproblem_opt.solve(subproblem_model, tee=config['print_subproblem_solver_output'])
-            
+            log_file_path = iteration_logs_directory_path.joinpath(f'subproblem_day_{day_name}_log.log')
+            subproblem_model_results = subproblem_opt.solve(subproblem_model, tee=False, logfile=log_file_path)
+
             subproblem_solving_end_time = time.perf_counter()
-            if config['print_time_taken_by_subproblem_solver']:
-                if config['print_subproblem_solver_output']:
-                    print(f'[iter {iteration_index}] End subproblem solving process for day \'{day_name}\'. Took {subproblem_solving_end_time - subproblem_solving_start_time} seconds.')
-                else:
-                    print(f'end. Took {subproblem_solving_end_time - subproblem_solving_start_time} seconds.')
+            print(f'end. Took {subproblem_solving_end_time - subproblem_solving_start_time} seconds.')
 
             subproblem_model.solutions.store_to(subproblem_model_results)
             solution = subproblem_model_results.solution[0]
@@ -473,40 +408,32 @@ def main(group_directory_path, config, config_file_path):
                 'objective_function_value': value
             }}
         
-            subproblem_results.update(get_results_from_subproblem_model(subproblem_model, config['subproblem_config']['additional_info']))
+            subproblem_results.update(get_results_from_subproblem_model(subproblem_model, config['additional_subproblem_info']))
 
-            if config['save_subproblem_results']:
-                subproblem_results_file_path = iteration_results_directory_path.joinpath(f'subproblem_day_{day_name}_results.json')
-                with open(subproblem_results_file_path, 'w') as file:
-                    json.dump(subproblem_results, file, indent=4)
-            
-            if config['check_subproblem_results']:
-                if config['checks_throw_exceptions']:
+            subproblem_results_file_path = iteration_results_directory_path.joinpath(f'subproblem_day_{day_name}_results.json')
+            with open(subproblem_results_file_path, 'w') as file:
+                json.dump(subproblem_results, file, indent=4)
+        
+            if config['checks_throw_exceptions']:
+                check_subproblem_results(subproblem_instance, subproblem_results)
+            else:
+                try:
                     check_subproblem_results(subproblem_instance, subproblem_results)
-                else:
-                    try:
-                        check_subproblem_results(subproblem_instance, subproblem_results)
-                    except Exception as exception:
-                        print(exception)
+                except Exception as exception:
+                    print(exception)
 
-            if config['analyze_subproblem_results']:
-                subproblem_results_analysis = analyze_subproblem_results(subproblem_instance, subproblem_results, subproblem_instance_file_path)
-                subproblem_results_analysis_file_name = iteration_analysis_directory_path.joinpath('subproblem_results_analysis.json')
-                with open(subproblem_results_analysis_file_name, 'w') as file:
-                    json.dump(subproblem_results_analysis, file, indent=4)
-
-            if config['plot_subproblem_results']:
-                subproblem_plot_file_name = iteration_plots_directory_path.joinpath(f'subproblem_day_{day_name}_results_plot.png')
-                plot_subproblem_results(subproblem_instance, subproblem_results, subproblem_plot_file_name)
+            subproblem_results_analysis = analyze_subproblem_results(subproblem_instance, subproblem_results, subproblem_instance_file_path)
+            subproblem_results_analysis_file_name = iteration_analysis_directory_path.joinpath('subproblem_results_analysis.json')
+            with open(subproblem_results_analysis_file_name, 'w') as file:
+                json.dump(subproblem_results_analysis, file, indent=4)
 
             all_subproblem_results[day_name] = subproblem_results
         
         final_results = compose_final_results(master_instance, master_results, all_subproblem_results)
 
-        if config['save_final_results']:
-            final_results_file_path = iteration_results_directory_path.joinpath('final_results.json')
-            with open(final_results_file_path, 'w') as file:
-                json.dump(final_results, file, indent=4)
+        final_results_file_path = iteration_results_directory_path.joinpath('final_results.json')
+        with open(final_results_file_path, 'w') as file:
+            json.dump(final_results, file, indent=4)
         
         final_results_value = get_final_results_value(master_instance, final_results)
         if best_final_results_value is None or final_results_value > best_final_results_value:
@@ -514,24 +441,18 @@ def main(group_directory_path, config, config_file_path):
             with open(best_final_results_file_path, 'w') as file:
                 json.dump(final_results, file, indent=4)
 
-        if config['check_final_results']:
-            if config['checks_throw_exceptions']:
+        if config['checks_throw_exceptions']:
+            check_final_results(master_instance, final_results)
+        else:
+            try:
                 check_final_results(master_instance, final_results)
-            else:
-                try:
-                    check_final_results(master_instance, final_results)
-                except Exception as exception:
-                    print(exception)
+            except Exception as exception:
+                print(exception)
 
-        if config['analyze_final_results']:
-            final_results_analysis = analyze_final_results(master_instance, final_results, master_instance_file_path)
-            final_results_analysis_file_name = iteration_analysis_directory_path.joinpath('final_results_analysis.json')
-            with open(final_results_analysis_file_name, 'w') as file:
-                json.dump(final_results_analysis, file, indent=4)
-
-        if config['plot_final_results']:
-            final_results_plot_file_name = iteration_plots_directory_path.joinpath(f'final_results_plot.png')
-            plot_master_results(master_instance, final_results, final_results_plot_file_name)
+        final_results_analysis = analyze_final_results(master_instance, final_results, master_instance_file_path)
+        final_results_analysis_file_name = iteration_analysis_directory_path.joinpath('final_results_analysis.json')
+        with open(final_results_analysis_file_name, 'w') as file:
+            json.dump(final_results_analysis, file, indent=4)
 
         days_not_completely_solved = []
         for day_name, day_results in all_subproblem_results.items():
@@ -561,178 +482,130 @@ def main(group_directory_path, config, config_file_path):
                 print(f'[iter {iteration_index}] Master and subproblems reached the minimum value difference ({min_difference}%): exiting iteration cycle.') 
                 break
 
-        if 'use_objective_value_constraints' in config['master_config']['additional_info']:
+        if 'use_objective_value_constraints' in config['additional_master_info']:
             add_objective_value_constraints(master_model, master_instance, all_subproblem_results, max_possible_master_requests)
+            
+        cores_analysis = {}
+
+        # Calcola l'elenco di core a partire dalle richieste non schedulate:
+        # > Core dumb: tutto quanto è richiesto in un dato giorno,
+        # > Core basic: ogni singola richiesta non schedulata più tutte
+        #   quelle schedulate,
+        # > Core reduced: ogni singola richiesta non schedulata più tutte
+        #   quelle schedulate che hanno paziente o unità di cura
+        #   influenzate, anche a catena.
+        if config['core_type'] == 'dumb':
+            current_iteration_cores = compute_dumb_cores(all_subproblem_results)
+        elif config['core_type'] == 'basic':
+            current_iteration_cores = compute_basic_cores(all_subproblem_results)
+        elif config['core_type'] == 'reduced':
+            current_iteration_cores = compute_reduced_cores(all_subproblem_results, master_instance)
+
+        if  config['expand_core_days'] or config['expand_core_patients'] or config['expand_core_services']:
+            print(f'[iter {iteration_index}] {len(current_iteration_cores)} new cores are found.')
+        
+        core_number = len(current_iteration_cores)
+
+        # Numero di core prima dell'eventuale espansione
+        cores_analysis['core_number_pre_expansion'] = core_number
+        
+        day_names = set()
+        for core in current_iteration_cores:
+            day_names.update(core['days'])
+        
+        # Numero di giorni che hanno almeno un core
+        cores_analysis['day_with_cores_pre_expansion'] = len(day_names)
+
+        total_core_components_number = 0
+        for core in current_iteration_cores:
+            total_core_components_number += len(core['components'])
+        
+        # Numero medio di componenti dei core
+        cores_analysis['average_core_size_pre_expansion'] = total_core_components_number / core_number
     
-        if config['use_cores']:
+        # Numero di core le cui componenti sono tutte quelle chieste dal master
+        cores_equal_to_master_request = 0
+        total_core_component_percentages = 0
+
+        for core in current_iteration_cores:
             
-            if config['analyze_cores']:
-                cores_analysis = {}
-
-            # Calcola l'elenco di core a partire dalle richieste non schedulate:
-            # > Core dumb: tutto quanto è richiesto in un dato giorno,
-            # > Core basic: ogni singola richiesta non schedulata più tutte
-            #   quelle schedulate,
-            # > Core reduced: ogni singola richiesta non schedulata più tutte
-            #   quelle schedulate che hanno paziente o unità di cura
-            #   influenzate, anche a catena.
-            if config['core_type'] == 'dumb':
-                current_iteration_cores = compute_dumb_cores(all_subproblem_results)
-            elif config['core_type'] == 'basic':
-                current_iteration_cores = compute_basic_cores(all_subproblem_results)
-            elif config['core_type'] == 'reduced':
-                current_iteration_cores = compute_reduced_cores(all_subproblem_results, master_instance)
-
-            if config['print_core_info'] and (config['expand_core_days'] or config['expand_core_patients'] or config['expand_core_services']):
-                print(f'[iter {iteration_index}] {len(current_iteration_cores)} new cores are found.')
+            day_name = core['days'][0]
+            daily_results = all_subproblem_results[day_name]
             
-            if config['analyze_cores']:
-
-                core_number = len(current_iteration_cores)
-
-                # Numero di core prima dell'eventuale espansione
-                cores_analysis['core_number_pre_expansion'] = core_number
-                
-                day_names = set()
-                for core in current_iteration_cores:
-                    day_names.update(core['days'])
-                
-                # Numero di giorni che hanno almeno un core
-                cores_analysis['day_with_cores_pre_expansion'] = len(day_names)
-
-                total_core_components_number = 0
-                for core in current_iteration_cores:
-                    total_core_components_number += len(core['components'])
-                
-                # Numero medio di componenti dei core
-                cores_analysis['average_core_size_pre_expansion'] = total_core_components_number / core_number
+            if len(core['components']) == len(daily_results['scheduled']) + len(daily_results['rejected']):
+                cores_equal_to_master_request += 1
             
-                # Numero di core le cui componenti sono tutte quelle chieste dal master
-                cores_equal_to_master_request = 0
-                total_core_component_percentages = 0
+            total_core_component_percentages += len(core['components']) / (len(daily_results['scheduled']) + len(daily_results['rejected']))
 
-                for core in current_iteration_cores:
-                    
-                    day_name = core['days'][0]
-                    daily_results = all_subproblem_results[day_name]
-                    
-                    if len(core['components']) == len(daily_results['scheduled']) + len(daily_results['rejected']):
-                        cores_equal_to_master_request += 1
-                    
-                    total_core_component_percentages += len(core['components']) / (len(daily_results['scheduled']) + len(daily_results['rejected']))
+        cores_analysis['number_of_core_equal_to_master_request'] = cores_equal_to_master_request
+        cores_analysis['percentage_of_core_equal_to_master_request'] = cores_equal_to_master_request / core_number
 
-                cores_analysis['number_of_core_equal_to_master_request'] = cores_equal_to_master_request
-                cores_analysis['percentage_of_core_equal_to_master_request'] = cores_equal_to_master_request / core_number
+        cores_analysis['average_percentage_of_core_done_by_subproblem'] = total_core_component_percentages / core_number
 
-                cores_analysis['average_percentage_of_core_done_by_subproblem'] = total_core_component_percentages / core_number
+        # Se richiesto, aggiorna le liste dei giorni in cui i core sono
+        # attivi con tutti quei giorni 'minori o uguali' nelle unità di
+        # cura influenzate.
+        if config['expand_core_days']:
+            expand_core_days(master_instance, current_iteration_cores, expanded_days)
 
-            # Se richiesto, aggiorna le liste dei giorni in cui i core sono
-            # attivi con tutti quei giorni 'minori o uguali' nelle unità di
-            # cura influenzate.
-            if config['expand_core_days']:
-                expand_core_days(master_instance, current_iteration_cores, expanded_days)
+        total_day_number = 0
+        for core in current_iteration_cores:
+            total_day_number += len(core['days'])
+        
+        # Numero medio di giorni in cui i core sono attivi,
+        # dopo l'espansione dei giorni. Questo valore è uguale al numero
+        # dei core se non è richiesta l'espansione dei giorni.
+        cores_analysis['average_day_number_per_core'] = total_day_number / len(current_iteration_cores)
+
+        # Se richiesta, effettua l'espansione dei nomi dei pazienti e/o
+        # servizi, aggiornando la lista dei core dell'iterazione corrente.
+        if config['expand_core_patients'] or config['expand_core_services']:
+            current_iteration_cores.extend(expand_core_patients_services(current_iteration_cores, max_possible_master_requests, master_instance, config['expand_core_patients'], config['expand_core_services'], config['max_expansions_per_core']))
+            print(f'[iter {iteration_index}] {len(current_iteration_cores)} total new cores are present after expansion.')
+        
+        # Se sono presenti più giorni, è possibile che alcuni core siano
+        # relativi a richieste impossibili.
+        if config['expand_core_days']:
+            current_iteration_cores = remove_core_days_without_exact_requests(current_iteration_cores, max_possible_master_requests)
+            print(f'[iter {iteration_index}] {len(current_iteration_cores)} new cores are remaining after removing impossible ones.')
+
+        # Calcola e aggiorna i core togliendo eventuali duplicati
+        current_iteration_cores, all_iterations_cores = aggregate_and_remove_duplicate_cores(current_iteration_cores, all_iterations_cores)
+        
+        print(f'[iter {iteration_index}] {len(current_iteration_cores)} cores remaining after removing duplicates.')
+        
+        if len(current_iteration_cores) > 0:
             
-            if config['analyze_cores']:
+            # Numero di core dopo le eventuali espansioni.
+            cores_analysis['core_number_post_name_expansion'] = len(current_iteration_cores)
 
-                total_day_number = 0
-                for core in current_iteration_cores:
-                    total_day_number += len(core['days'])
-                
-                # Numero medio di giorni in cui i core sono attivi,
-                # dopo l'espansione dei giorni. Questo valore è uguale al numero
-                # dei core se non è richiesta l'espansione dei giorni.
-                cores_analysis['average_day_number_per_core'] = total_day_number / len(current_iteration_cores)
-
-            # Se richiesta, effettua l'espansione dei nomi dei pazienti e/o
-            # servizi, aggiornando la lista dei core dell'iterazione corrente.
-            if config['expand_core_patients'] or config['expand_core_services']:
-                current_iteration_cores.extend(expand_core_patients_services(current_iteration_cores, max_possible_master_requests, master_instance, config['expand_core_patients'], config['expand_core_services'], config['max_expansions_per_core']))
-                if config['print_core_info']:
-                    print(f'[iter {iteration_index}] {len(current_iteration_cores)} total new cores are present after expansion.')
+            total_core_components_number = 0
+            for core in  current_iteration_cores:
+                total_core_components_number += len(core['components'])
             
-            # Se sono presenti più giorni, è possibile che alcuni core siano
-            # relativi a richieste impossibili.
-            if config['expand_core_days']:
-                current_iteration_cores = remove_core_days_without_exact_requests(current_iteration_cores, max_possible_master_requests)
-                if config['print_core_info']:
-                    print(f'[iter {iteration_index}] {len(current_iteration_cores)} new cores are remaining after removing impossible ones.')
-
-            # Calcola e aggiorna i core togliendo eventuali duplicati
-            current_iteration_cores, all_iterations_cores = aggregate_and_remove_duplicate_cores(current_iteration_cores, all_iterations_cores)
-            if config['print_core_info']:
-                print(f'[iter {iteration_index}] {len(current_iteration_cores)} cores remaining after removing duplicates.')
-            
-            if config['analyze_cores']:
-
-                if len(current_iteration_cores) > 0:
-                    
-                    # Numero di core dopo le eventuali espansioni.
-                    cores_analysis['core_number_post_name_expansion'] = len(current_iteration_cores)
-
-                    total_core_components_number = 0
-                    for core in  current_iteration_cores:
-                        total_core_components_number += len(core['components'])
-                    
-                    # Numero medio di componenti dei core
-                    cores_analysis['average_core_size_post_name_expansion'] = total_core_components_number / len(current_iteration_cores)
-            
+            # Numero medio di componenti dei core
+            cores_analysis['average_core_size_post_name_expansion'] = total_core_components_number / len(current_iteration_cores)
+        
             # Se è presente almeno un core, aggiungi i vincoli nel modello MILP
             # del master.
-            if len(current_iteration_cores) > 0:
-                add_cores_constraints_to_master_model(master_model, current_iteration_cores)
+            add_cores_constraints_to_master_model(master_model, current_iteration_cores)
 
-            # Eventuale salvataggio su file dei core di questa iterazione.
-            if config['save_cores']:
-                cores_file_path = iteration_cores_directory_path.joinpath('cores.json')
-                with open(cores_file_path, 'w') as file:
-                    json.dump(current_iteration_cores, file, indent=4)
-            
-            if config['print_core_info']:
-                print(f'[iter {iteration_index}] Added {len(current_iteration_cores)} new cores to the master problem.')
-            
-            # Eventuale salvataggio su file dell'analisi dei core di questa
-            # iterazione.
-            if config['analyze_cores']:
-                cores_analysis_file_path = iteration_analysis_directory_path.joinpath('core_analysis.json')
-                with open(cores_analysis_file_path, 'w') as file:
-                    json.dump(cores_analysis, file, indent=4)
+        # Salvataggio su file dei core di questa iterazione.
+        cores_file_path = iteration_cores_directory_path.joinpath('cores.json')
+        with open(cores_file_path, 'w') as file:
+            json.dump(current_iteration_cores, file, indent=4)
+        
+        print(f'[iter {iteration_index}] Added {len(current_iteration_cores)} new cores to the master problem.')
+        
+        # Salvataggio su file dell'analisi dei core di questa
+        # iterazione.
+        cores_analysis_file_path = iteration_analysis_directory_path.joinpath('core_analysis.json')
+        with open(cores_analysis_file_path, 'w') as file:
+            json.dump(cores_analysis, file, indent=4)
 
         print(f'[iter {iteration_index}] Iteration {iteration_index} finished.')
         
         iteration_index += 1
 
-    if config['use_cores']:
-        all_iterations_cores_file_path = cores_directory_path.joinpath('all_iterations_cores.json')
-        with open(all_iterations_cores_file_path, 'w') as file:
-            json.dump(all_iterations_cores, file, indent=4)
-
     total_end_time = time.perf_counter()
     print(f'End total solving process. Time elapsed: {total_end_time - total_start_time} seconds')
-
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(prog='Main decomposition loop', description='Solve an instance with decomposition')
-    parser.add_argument('-i', '--input', type=Path, help='Instance group directory path', required=True)
-    parser.add_argument('-c', '--config', type=Path, help='YAML file configuration path', required=True)
-    args = parser.parse_args()
-
-    group_directory_path = Path(args.input).resolve()
-    config_file_path = Path(args.config).resolve()
-
-    if not group_directory_path.exists():
-        raise ValueError(f'Group directory \'{group_directory_path}\' does not exists')
-    elif not group_directory_path.is_dir():
-        raise ValueError(f'Group \'{group_directory_path}\' is not a directory')
-
-    if not config_file_path.exists():
-        raise FileNotFoundError(f'Configuration file \'{config_file_path}\' does not exists.')
-    if not config_file_path.is_file() or config_file_path.is_dir():
-        raise ValueError(f'Configuration file \'{config_file_path}\' is not a file')
-    if config_file_path.suffix != '.yaml':
-        raise ValueError(f'Configuration file \'{config_file_path}\' is not a YAML file')
-
-    with open(config_file_path, 'r') as file:
-        config = yaml.load(file, yaml.Loader)
-
-    main(group_directory_path, config, config_file_path)
