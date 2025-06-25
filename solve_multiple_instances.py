@@ -41,6 +41,9 @@ for config_name, config_changes in configs['groups'].items():
 
         if 'groups_to_do' in config and config['groups_to_do'] != 'all' and group_name not in config['groups_to_do']:
             continue
+
+        if 'groups_to_avoid' in config and group_name in config['groups_to_avoid']:
+            continue
         
         for master_instance_file_path in group_directory_path.iterdir():
             

@@ -3,29 +3,6 @@ import pyomo.environ as pyo
 
 def get_subproblem_model(instance, additional_info):
     
-    # priorities are used if present in all the patients and are not all the same value
-    if 'use_patient_priority' not in additional_info:
-        use_priorities = False
-    else:
-        are_priorities_always_present = True
-        are_all_priorities_the_same = True
-        priority_value = None
-
-        for patient in instance['patients'].values():
-        
-            if 'priority' not in patient:
-                are_priorities_always_present = False
-                break
-        
-            if priority_value is None:
-                priority_value = patient['priority']
-            if priority_value is not None and priority_value != patient['priority']:
-                are_all_priorities_the_same = False
-                break
-
-        use_priorities = are_priorities_always_present and not are_all_priorities_the_same
-        del are_all_priorities_the_same, priority_value, are_priorities_always_present
-
     model = pyo.ConcreteModel()
 
     ############################ MODEL SETS AND INDEXES ############################
@@ -67,10 +44,9 @@ def get_subproblem_model(instance, additional_info):
     def max_time(model, c):
         return max([o['start'] + o['duration'] for o in instance['day'][c].values()]) + 1
 
-    if use_priorities:
-        @model.Param(model.patients, domain=pyo.PositiveIntegers, mutable=False)
-        def patient_priority(model, p):
-            return instance['patients'][p]['priority']
+    @model.Param(model.patients, domain=pyo.PositiveIntegers, mutable=False)
+    def patient_priority(model, p):
+        return instance['patients'][p]['priority']
 
     # tuples (patient, service) that specify what request is satisfied
     schedulable_tuples = set()
@@ -290,49 +266,28 @@ def get_subproblem_model(instance, additional_info):
     def operator_overlap_auxiliary_constraint_3(model, p, s, pp, ss, c, o):
         return model.do[pp, ss, c, o] >= model.operator_overlap_1[p, s, pp, ss, c, o] + model.operator_overlap_2[p, s, pp, ss, c, o]
 
-    if 'use_redundant_patient_cut' in additional_info:
-
-        # *optional* additional constraint. The total duration of services assigned to one patient must
-        # not be greater than the maximum time slot assignable that day for operators of involved care units.
-        # This constraint could be omitted without loss of correctedness but helps with a faster convergence.
-        @model.Constraint(model.patients)
-        def redundant_patient_cut(model, p):
-            tuples_affected = [(s, c, o) for pp, s, c, o in model.do_index if p == pp]
-            if len(tuples_affected) == 0:
-                return pyo.Constraint.Feasible
-            involved_care_unit_names = set(tuples_affected[i][1] for i in range(len(tuples_affected)))
-            max_time_slot = max(model.max_time[c] for c in involved_care_unit_names)
-            return pyo.quicksum(model.do[p, s, cc, o] * model.service_duration[s] for s, cc, o in tuples_affected) <= max_time_slot
-
-    if 'use_redundant_operator_cut' in additional_info:
-        
-        # *optional* additional constraint. The total duration of services assigned to one operator must
-        # not be greater than the operator duration. This constraint could be omitted
-        # without loss of correctedness but helps with a faster convergence.
-        @model.Constraint(model.operators)
-        def redundant_operator_cut(model, c, o):
-            tuples_affected = [(p, s) for p, s, cc, oo in model.do_index if cc == c and oo == o]
-            if len(tuples_affected) == 0:
-                return pyo.Constraint.Feasible
-            return pyo.quicksum(model.do[p, s, c, o] * model.service_duration[s] for p, s in tuples_affected) <= model.operator_duration[c, o]
+    # *optional* additional constraint. The total duration of services assigned to one operator must
+    # not be greater than the operator duration. This constraint could be omitted
+    # without loss of correctedness but helps with a faster convergence.
+    @model.Constraint(model.operators)
+    def redundant_operator_cut(model, c, o):
+        tuples_affected = [(p, s) for p, s, cc, oo in model.do_index if cc == c and oo == o]
+        if len(tuples_affected) == 0 or sum(model.service_duration[s] for _, s in tuples_affected) <= model.operator_duration[c, o]:
+            return pyo.Constraint.Skip
+        return pyo.quicksum(model.do[p, s, c, o] * model.service_duration[s] for p, s in tuples_affected) <= model.operator_duration[c, o]
 
     ############################## OBJECTIVE FUNCTION ##############################
 
     # the solution value depends linearly by the total service duration of the
     # satisfied request, scaled by the requesting patient priority.
-    if use_priorities:
-        @model.Objective(sense=pyo.maximize)
-        def total_satisfied_service_durations(model):
-            return pyo.quicksum(model.do[p, s, c, o] * model.service_duration[s] * model.patient_priority[p] for p, s, c, o in model.do_index)
-    else:
-        @model.Objective(sense=pyo.maximize)
-        def total_satisfied_service_durations(model):
-            return pyo.quicksum(model.do[p, s, c, o] * model.service_duration[s] for p, s, c, o in model.do_index)
+    @model.Objective(sense=pyo.maximize)
+    def total_satisfied_service_durations(model):
+        return pyo.quicksum(model.do[p, s, c, o] * model.service_duration[s] * model.patient_priority[p] for p, s, c, o in model.do_index)
 
     return model
 
 
-def get_results_from_subproblem_model(model, additional_info):
+def get_results_from_subproblem_model(model):
 
     scheduled_requests = []
     for p, s, c, o in model.do_index:

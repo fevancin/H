@@ -7,29 +7,6 @@ def get_master_model(instance, additional_info):
 
     max_day_number = max([int(d) for d in instance['days'].keys()])
 
-    # priorities are used if present in all the patients and are not all the same value
-    if 'use_patient_priority' not in additional_info:
-        use_priorities = False
-    else:
-        are_priorities_always_present = True
-        are_all_priorities_the_same = True
-        priority_value = None
-
-        for patient in instance['patients'].values():
-        
-            if 'priority' not in patient:
-                are_priorities_always_present = False
-                break
-        
-            if priority_value is None:
-                priority_value = patient['priority']
-            if priority_value is not None and priority_value != patient['priority']:
-                are_all_priorities_the_same = False
-                break
-
-        use_priorities = are_priorities_always_present and not are_all_priorities_the_same
-        del are_all_priorities_the_same, priority_value, are_priorities_always_present
-
     model = pyo.ConcreteModel()
 
     ############################ MODEL SETS AND INDEXES ############################
@@ -52,6 +29,13 @@ def get_master_model(instance, additional_info):
                                         for c, cu in day.items()
                                         for o in cu.keys()])
 
+    
+    # pat_day_indexes are on the form (patient, day)
+    pat_days_index = set()
+    for patient_name, _, day_name in model.do_index:
+        pat_days_index.add((patient_name, int(day_name)))
+    model.pat_days_index = pyo.Set(initialize=sorted(pat_days_index))
+
     ############################### MODEL PARAMETERS ###############################
 
     @model.Param(model.services, domain=pyo.Any, mutable=False)
@@ -67,10 +51,14 @@ def get_master_model(instance, additional_info):
     def capacity(model, d, c):
         return sum([o['duration'] for o in instance['days'][str(d)][c].values()])
 
-    if use_priorities:
-        @model.Param(model.patients, domain=pyo.PositiveIntegers, mutable=False)
-        def patient_priority(model, p):
-            return instance['patients'][p]['priority']
+    @model.Param(model.patients, domain=pyo.PositiveIntegers, mutable=False)
+    def patient_priority(model, p):
+        return instance['patients'][p]['priority']
+    
+    # max_duration[d, c] is the maximum operator duration
+    @model.Param(model.days, domain=pyo.NonNegativeIntegers, mutable=False)
+    def max_duration(model, d):
+        return max([o['duration'] for c in instance['days'][str(d)].keys() for o in instance['days'][str(d)][c].values()])
 
     # this variable stores a set of quadruples (patient, service, start, end) for
     # each interval requested by some protocol
@@ -170,7 +158,7 @@ def get_master_model(instance, additional_info):
     def respect_care_unit_capacity(model, d, c):
         tuples_affected = [(p, s) for p, s, dd in model.do_index if d == dd and c == model.service_care_unit[s]]
         if len(tuples_affected) == 0:
-            return pyo.Constraint.Feasible
+            return pyo.Constraint.Skip
         return pyo.quicksum(model.do[p, s, d] * model.service_duration[s] for p, s in tuples_affected) <= model.capacity[d, c]
 
     # constraint that links service satisfacion with 'window_overlap' variables.
@@ -183,27 +171,12 @@ def get_master_model(instance, additional_info):
         tuples_affected = [(p, s, d) for d in range(min_ws, max_we + 1) for pp, ss, dd in model.do_index if p == pp and s == ss and d == dd]
         return pyo.quicksum(model.do[p, s, d] for p, s, d in tuples_affected) <= 1 + model.window_overlap[p, s, ws, we, wws, wwe]
 
-    if 'use_patient_cut' in additional_info or 'minimize_hospital_accesses' in additional_info:
-
-        # pat_day_indexes are on the form (patient, day)
-        pat_days_index = set()
-        for patient_name, _, day_name in model.do_index:
-            pat_days_index.add((patient_name, int(day_name)))
-        model.pat_days_index = pyo.Set(initialize=sorted(pat_days_index))
-    
-    if 'use_patient_cut' in additional_info:
-
-        # max_duration[d, c] is the maximum operator duration
-        @model.Param(model.days, domain=pyo.NonNegativeIntegers, mutable=False)
-        def max_duration(model, d):
-            return max([o['duration'] for c in instance['days'][str(d)].keys() for o in instance['days'][str(d)][c].values()])
-
-        # it is impossible for a single patient to do services of a specific care unit
-        # with a total duration greater than the longest operator duration of that care unit.
-        # This constraint is only valid if every care unit has all its operators that start at the same time.
-        @model.Constraint(model.pat_days_index)
-        def patient_total_duration(model, p, d):
-            return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
+    # it is impossible for a single patient to do services of a specific care unit
+    # with a total duration greater than the longest operator duration of that care unit.
+    # This constraint is stronger if every care unit has all its operators that start and end at the same time.
+    @model.Constraint(model.pat_days_index)
+    def patient_total_duration(model, p, d):
+        return pyo.quicksum([model.do[pp, s, dd] * model.service_duration[s] for pp, s, dd in model.do_index if pp == p and dd == d]) <= model.max_duration[d]
 
 
     if 'minimize_hospital_accesses' in additional_info:
@@ -223,20 +196,16 @@ def get_master_model(instance, additional_info):
     # satisfied request, scaled by the requesting patient priority.
     # A more important second objective is added with a big constant that makes
     # the solver prefer solutions that group toghether same-service windows of
-    # the same patient if they overlap.
+    # the same patient if they overlap. It's possible to specify a third objective
+    # consisting in the minimization of days unsed by the same patient.
 
     model.function_value_component = pyo.Var(model.days, domain=pyo.NonNegativeIntegers)
 
-    if use_priorities:
-        @model.Constraint(model.days)
-        def compose_function_value(model, d):
-            return model.function_value_component[d] == pyo.quicksum(model.do[p, s, dd] * model.service_duration[s] * model.patient_priority[p] for p, s, dd in model.do_index if d == dd)
-    else:
-        @model.Constraint(model.days)
-        def compose_function_value(model, d):
-            return model.function_value_component[d] == pyo.quicksum(model.do[p, s, dd] * model.service_duration[s] for p, s, dd in model.do_index if d == dd)
+    @model.Constraint(model.days)
+    def compose_function_value(model, d):
+        return model.function_value_component[d] == pyo.quicksum(model.do[p, s, dd] * model.service_duration[s] * model.patient_priority[p] for p, s, dd in model.do_index if d == dd)
     
-    if use_priorities and 'minimize_hospital_accesses' in additional_info:
+    if 'minimize_hospital_accesses' in additional_info:
         @model.Objective(sense=pyo.maximize)
         def total_satisfied_service_durations(model):
             return pyo.quicksum(model.function_value_component[d] for d in model.days) - 1e6 * pyo.quicksum(model.window_overlap[p, s, ws, we, wws, wwe] for p, s, ws, we, wws, wwe in model.window_overlap_index) - 1 / len(model.pat_days_index) * pyo.quicksum(model.pat_use_day[p, d] for p, d in model.pat_days_index)
@@ -389,7 +358,7 @@ def add_objective_value_constraints(model, instance, all_subproblem_results, max
         model.objective_value_constraints.add(expr=(model.function_value_component[day_index] <= solution_values[day_name] + solution_values[day_name] * 100 * pyo.quicksum([model.do[p, s, d] for p, s, d in tuple_list])))
 
 
-def get_results_from_master_model(model, config):
+def get_results_from_master_model(model):
 
     scheduled_requests_grouped_per_day = {}
     for p, s, d in model.do_index:

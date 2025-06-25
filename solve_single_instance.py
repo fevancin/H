@@ -317,7 +317,7 @@ def main(group_directory_path, config, config_file_path):
             'objective_function_value': value
         }}
 
-        master_results.update(get_results_from_master_model(master_model, config['additional_master_info']))
+        master_results.update(get_results_from_master_model(master_model))
 
         master_results_file_path = iteration_results_directory_path.joinpath('master_results.json')
         with open(master_results_file_path, 'w') as file:
@@ -408,7 +408,7 @@ def main(group_directory_path, config, config_file_path):
                 'objective_function_value': value
             }}
         
-            subproblem_results.update(get_results_from_subproblem_model(subproblem_model, config['additional_subproblem_info']))
+            subproblem_results.update(get_results_from_subproblem_model(subproblem_model))
 
             subproblem_results_file_path = iteration_results_directory_path.joinpath(f'subproblem_day_{day_name}_results.json')
             with open(subproblem_results_file_path, 'w') as file:
