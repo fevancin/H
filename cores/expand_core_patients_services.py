@@ -11,80 +11,15 @@ def get_max_possible_master_requests(master_instance):
 
     # Cicli che per ogni paziente, protocollo e servizio richiesto popola
     # 'max_requests'.
-    for patient_name, patient in master_instance['patients'].items():
-        for protocol in patient['protocols'].values():
-            for protocol_service in protocol['protocol_services']:
-
-                service_name = protocol_service['service']
-                start = protocol_service['start'] + protocol['initial_shift']
-                tolerance = protocol_service['tolerance']
-                frequency = protocol_service['frequency']
-                times = protocol_service['times']
-
-                # Se il servizio è richiesto una sola volta.
-                if times == 1:
-
-                    for day_index in range(start - tolerance, start + tolerance):
-                        
-                        day_name = str(day_index)
-                        
-                        # Ignora i giorni fuori dall'instanza.
-                        if day_name not in master_instance['days']:
-                            continue
-
-                        # Se il giorno non aveva ancora richieste crea la lista
-                        # a lui relativa.
-                        if day_name not in max_requests:
-                            max_requests[day_name] = []
-                        
-                        max_requests[day_name].append({
-                            'patient': patient_name,
-                            'service': service_name
-                        })
-
-                    continue
-
-                # Se il servizio è richiesto più volte, per ogni occorrenza
-                # aggiungi la richiesta in tutti i giorni della sua finestra.
-                for central_day in range(start, start + times * frequency, frequency):
-                    for day_index in range(central_day - tolerance, central_day + tolerance):
-                        
-                        day_name = str(day_index)
-                        
-                        # Ignora i giorni fuori dall'instanza.
-                        if day_name not in master_instance['days']:
-                            continue
-
-                        # Se il giorno non aveva ancora richieste crea la lista
-                        # a lui relativa.
-                        if day_name not in max_requests:
-                            max_requests[day_name] = []
-                        
-                        max_requests[day_name].append({
-                            'patient': patient_name,
-                            'service': service_name
-                        })
-
-    # Se un paziente richiede lo stesso servizio in protocolli diversi è
-    # possibile che si generino duplicati nelle richieste giornaliere quando le
-    # loro finestre si sovrappongono; questo ciclo si occupa di rimuoverle.
-    for day_name, daily_max_requests in max_requests.items():
-        
-        unique_requests = []
-        
-        for request in daily_max_requests:
-        
-            request_already_present = False
-            for unique_request in unique_requests:
-                if (request['patient'] == unique_request['patient'] and
-                    request['service'] == unique_request['service']):
-                    request_already_present = True
-                    break
-        
-            if not request_already_present:
-                unique_requests.append(request)
-        
-        max_requests[day_name] = unique_requests
+    for paitient_name, patient in master_instance['patients'].items():
+        for service_name, windows in patient['requests'].items():
+            for window in windows:
+                for day_index in range(window[0], window[1] + 1):
+                    if day_index not in max_requests:
+                        max_requests[day_index] = set()
+                    max_requests[day_index].add((paitient_name, service_name))
+    
+    max_requests = {str(day_index): list(requests) for day_index, requests in max_requests.items()}
     
     return max_requests
 

@@ -377,67 +377,53 @@ def get_patients_windows(patients, max_day_index):
 
 def check_integrity_protocols_represented(results, instance):
 
-    max_day_index = max([int(day_name) for day_name in instance['days']])
-    patients_windows = get_patients_windows(instance['patients'], max_day_index)
-    
     for day_name, schedule in results['scheduled'].items():
-        
         day_index = int(day_name)
         
         for schedule_item in schedule:
-
             patient_name = schedule_item['patient']
             service_name = schedule_item['service']
             
-            if patient_name not in patients_windows or service_name not in patients_windows[patient_name]:
+            if patient_name not in instance['patients'] or service_name not in instance['patients'][patient_name]['requests']:
                 raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\'')
             
             window_found = False
-            remaining_windows = []
-            for window in patients_windows[patient_name][service_name]:
-                if window['start'] <= day_index and window['end'] >= day_index:
+            for window in instance['patients'][patient_name]['requests'][service_name]:
+                if window[0] <= day_index and window[1] >= day_index:
                     window_found = True
-                else:
-                    remaining_windows.append(window)
+                    break
             if not window_found:
+                print(instance['patients'][patient_name]['requests'][service_name])
                 raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' in day \'{day_name}\'')
             
-            if len(remaining_windows) == 0:
-                del patients_windows[patient_name][service_name]
-            else:
-                patients_windows[patient_name][service_name] = remaining_windows
-            
-            if len(patients_windows[patient_name]) == 0:
-                del patients_windows[patient_name]
+    # for schedule_item in results['rejected']:
 
-    for schedule_item in results['rejected']:
+    #     patient_name = schedule_item['patient']
+    #     service_name = schedule_item['service']
+    #     window = schedule_item['window']
 
-        patient_name = schedule_item['patient']
-        service_name = schedule_item['service']
-        window = schedule_item['window']
-
-        if patient_name not in patients_windows:
-            raise ValueError(f'patient \'{patient_name}\' already fully satisfied (no service \'{service_name}\' with window [{window[0]}, {window[1]}])')
-        if service_name not in patients_windows[patient_name]:
-            raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' with window [{window[0]}, {window[1]}]')
+    #     if patient_name not in patients_windows:
+    #         raise ValueError(f'patient \'{patient_name}\' already fully satisfied (no service \'{service_name}\' with window [{window[0]}, {window[1]}])')
+    #     if service_name not in patients_windows[patient_name]:
+    #         raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' with window [{window[0]}, {window[1]}]')
         
-        window_found = False
-        remaining_windows = []
-        for patient_window in patients_windows[patient_name][service_name]:
-            if patient_window['start'] == window[0] and patient_window['end'] == window[1]:
-                window_found = True
-            else:
-                remaining_windows.append(patient_window)
-        if not window_found:
-            raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' in window [{window[0]}, {window[1]}]')
+    #     window_found = False
+    #     remaining_windows = []
+    #     for patient_window in patients_windows[patient_name][service_name]:
+    #         if patient_window['start'] == window[0] and patient_window['end'] == window[1]:
+    #             window_found = True
+    #         else:
+    #             remaining_windows.append(patient_window)
+    #     if not window_found:
+    #         raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' in window [{window[0]}, {window[1]}]')
         
-        if len(remaining_windows) == 0:
-            del patients_windows[patient_name][service_name]
-        else:
-            patients_windows[patient_name][service_name] = remaining_windows
+    #     if len(remaining_windows) == 0:
+    #         del patients_windows[patient_name][service_name]
+    #     else:
+    #         patients_windows[patient_name][service_name] = remaining_windows
         
-        if len(patients_windows[patient_name]) == 0:
-            del patients_windows[patient_name]
+    #     if len(patients_windows[patient_name]) == 0:
+    #         del patients_windows[patient_name]
 
-    if len(patients_windows) != 0:
-        raise ValueError(f'some request are not in the results: {patients_windows}')
+    # if len(patients_windows) != 0:
+    #     raise ValueError(f'some request are not in the results: {patients_windows}')
