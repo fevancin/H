@@ -29,13 +29,6 @@ def get_master_model(instance, additional_info):
                                         for c, cu in day.items()
                                         for o in cu.keys()])
 
-    
-    # pat_day_indexes are on the form (patient, day)
-    pat_days_index = set()
-    for patient_name, _, day_name in model.do_index:
-        pat_days_index.add((patient_name, int(day_name)))
-    model.pat_days_index = pyo.Set(initialize=sorted(pat_days_index))
-
     ############################### MODEL PARAMETERS ###############################
 
     @model.Param(model.services, domain=pyo.Any, mutable=False)
@@ -55,42 +48,24 @@ def get_master_model(instance, additional_info):
     def patient_priority(model, p):
         return instance['patients'][p]['priority']
     
-    # max_duration[d, c] is the maximum operator duration
+    # max_duration[d, c] is the maximum operator end time
     @model.Param(model.days, domain=pyo.NonNegativeIntegers, mutable=False)
     def max_duration(model, d):
-        return max([o['duration'] for c in instance['days'][str(d)].keys() for o in instance['days'][str(d)][c].values()])
+        return max([o['start'] + o['duration'] for c in instance['days'][str(d)].keys() for o in instance['days'][str(d)][c].values()])
 
     # this variable stores a set of quadruples (patient, service, start, end) for
     # each interval requested by some protocol
-    windows = set()
-
-    # unravel each protocol service
+    window_index = set()
     for patient_name, patient in instance['patients'].items():
-        for protocol_name, protocol in patient['protocols'].items():
-            for protocol_service in protocol['protocol_services']:
-
-                day = protocol_service['start'] + protocol['initial_shift']
-                service_name = protocol_service['service']
-                tolerance = protocol_service['tolerance']
-                frequency = protocol_service['frequency']
-
-                # generate times interval
-                for time in range(protocol_service['times']):
-
-                    window_start, window_end = clamp(day - tolerance, day + tolerance, 0, max_day_number)
-                    
-                    if window_start is not None and window_end is not None:
-                        windows.add((patient_name, service_name, window_start, window_end))
-                    
-                    day += frequency
+        for service_name, windows in patient['requests'].items():
+            for window in windows:
+                window_index.add((patient_name, service_name, window[0], window[1]))
 
     # this set contains all (patient, service, day) tuples for
     # each possible protocol assignment. Those will be the indexes of actual
     # decision variables in the problem definition.
     schedulable_tuples = set()
-
-    # for each window...
-    for patient_name, service_name, window_start, window_end in windows:
+    for patient_name, service_name, window_start, window_end in window_index:
 
         # for each day in the window interval...
         for day in range(window_start, window_end + 1):
@@ -98,9 +73,9 @@ def get_master_model(instance, additional_info):
             # ...add a possible schedulable tuple
             schedulable_tuples.add((patient_name, service_name, day))
 
-    model.window_index = pyo.Set(initialize=sorted(windows))
+    model.window_index = pyo.Set(initialize=sorted(window_index))
     model.do_index = pyo.Set(initialize=sorted(schedulable_tuples))
-    del windows, schedulable_tuples
+    del window_index, schedulable_tuples
 
     # set of all windows of the same patient and service that intersect eachother.
     # (patient, service1, service2, start1, end1, start2, end2)
@@ -127,6 +102,12 @@ def get_master_model(instance, additional_info):
 
     model.window_overlap_index = pyo.Set(initialize=sorted(window_overlaps))
     del window_overlaps
+
+    # pat_day_indexes are on the form (patient, day)
+    pat_days_index = set()
+    for patient_name, _, day_name in model.do_index:
+        pat_days_index.add((patient_name, int(day_name)))
+    model.pat_days_index = pyo.Set(initialize=sorted(pat_days_index))
 
     ############################# VARIABLES DEFINITION #############################
 
@@ -189,6 +170,9 @@ def get_master_model(instance, additional_info):
 
     if 'use_bin_packing' in additional_info:
         add_bin_packing_cuts_to_master_model(model, instance)
+
+    if 'use_objective_value_constraints' in additional_info:
+        model.objective_value_constraints = pyo.ConstraintList()
 
     ############################## OBJECTIVE FUNCTION ##############################
 
@@ -285,10 +269,6 @@ def add_bin_packing_cuts_to_master_model(model, instance):
         if len(tuple_list) == 0:
             return pyo.Constraint.Skip
         return pyo.quicksum([model.do[p, s, d] for p, s in tuple_list]) <= operator_number * 4.0 - 2.0 * pyo.quicksum([model.do[p, s, d] for p, s in greater_tuple_list])
-
-def add_objective_value_constraint_class(model):
-
-    model.objective_value_constraints = pyo.ConstraintList()
 
 
 def add_objective_value_constraints(model, instance, all_subproblem_results, max_possible_master_requests):

@@ -13,7 +13,7 @@ from checkers.subproblem_results_checker import check_subproblem_results
 from checkers.final_results_checker import check_final_results
 
 from solvers.master_solver import get_master_model, get_results_from_master_model
-from solvers.master_solver import add_objective_value_constraint_class, add_objective_value_constraints
+from solvers.master_solver import add_objective_value_constraints
 from solvers.subproblem_solver import get_subproblem_model, get_results_from_subproblem_model
 
 from cores.compute_cores import compute_dumb_cores, compute_basic_cores, compute_reduced_cores, aggregate_and_remove_duplicate_cores
@@ -56,8 +56,6 @@ def compute_subproblem_instance_from_master(master_instance, master_results, day
 
 def compose_final_results(master_instance, master_results, all_subproblem_results):
 
-    max_day_index = len(master_instance['days']) - 1
-
     all_scheduled_results = {}
     for day_name, subproblem_results in all_subproblem_results.items():
         all_scheduled_results[day_name] = subproblem_results['scheduled']
@@ -69,52 +67,17 @@ def compose_final_results(master_instance, master_results, all_subproblem_result
     }
 
     for day_name, subproblem_results in all_subproblem_results.items():
+        day_index = int(day_name)
         for rejected_request in subproblem_results['rejected']:
             
             patient_name = rejected_request['patient']
             service_name = rejected_request['service']
 
             windows_containing_rejected_request = []
-            for protocol in master_instance['patients'][patient_name]['protocols'].values():
-                for protocol_service in protocol['protocol_services']:
-                    
-                    if protocol_service['service'] != service_name:
-                        continue
-                    
-                    start = protocol_service['start'] + protocol['initial_shift']
-                    tolerance = protocol_service['tolerance']
-                    frequency = protocol_service['frequency']
-                    times = protocol_service['times']
-
-
-                    if times == 1:
+            for window in master_instance['patients'][patient_name]['requests'][service_name]:
+                if window[0] <= day_index and window[1] >= day_index:
+                    windows_containing_rejected_request.append([window[0], window[1]])
                         
-                        window_start = start - tolerance
-                        window_end = start + tolerance
-
-                        if window_start < 0:
-                            window_start = 0
-                        if window_end > max_day_index:
-                            window_end = max_day_index
-                        
-                        if int(day_name) >= window_start and int(day_name) <= window_end:
-                            windows_containing_rejected_request.append([window_start, window_end])
-                        
-                        continue
-
-                    for central_day in range(start, start + frequency * times, frequency):
-                        
-                        window_start = central_day - tolerance
-                        window_end = central_day + tolerance
-
-                        if window_start < 0:
-                            window_start = 0
-                        if window_end > max_day_index:
-                            window_end = max_day_index
-                        
-                        if int(day_name) >= window_start and int(day_name) <= window_end:
-                            windows_containing_rejected_request.append([window_start, window_end])
-
             for window in windows_containing_rejected_request:
                 final_results['rejected'].append({
                     'patient': patient_name,
@@ -131,7 +94,7 @@ def compose_final_results(master_instance, master_results, all_subproblem_result
                 break
         if not already_present:
             unique_rejected.append(rejected_1)
-    final_results['rejected'] = unique_rejected
+    final_results['rejected'] = sorted(unique_rejected, key=lambda r: (r['patient'], r['service'], r['window'][0], r['window'][1]))
 
     true_results_objective_function_value = 0
     true_results_lower_bound = 0
@@ -168,6 +131,7 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
     
     if output_directory_path.exists():
         shutil.rmtree(output_directory_path)
+    output_directory_path.mkdir()
 
     input_directory_path = output_directory_path.joinpath('input')
     input_directory_path.mkdir()
@@ -197,7 +161,7 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
     with open(master_instance_analysis_file_path, 'w') as file:
         json.dump(master_instance_analysis, file, indent=4)
 
-    print(f'Solving instance \'{master_instance_file_path}\' with configuration from \'{solver_config_file_path}\'')
+    print(f'Solving instance \'{master_instance_file_path}\'')
     total_start_time = time.perf_counter()
 
     max_possible_master_requests = get_max_possible_master_requests(master_instance)
@@ -208,18 +172,15 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         with open(expanded_days_file_path, 'w') as file:
             json.dump(expanded_days, file, indent=4)
 
-    print(f'Start master model creation... ', end='')
+    print(f'Started master model creation... ', end='')
     master_model_creation_start_time = time.perf_counter()
 
     master_model = get_master_model(master_instance, config['additional_master_info'])
 
     add_cores_constraint_class_to_master_model(master_model)
-    
-    if 'use_objective_value_constraints' in config['additional_master_info']:
-        add_objective_value_constraint_class(master_model)
 
     master_model_creation_end_time = time.perf_counter()
-    print(f'end ({master_model_creation_end_time - master_model_creation_start_time}s).')
+    print(f'ended ({round(master_model_creation_end_time - master_model_creation_start_time, 4)}s).')
 
     master_opt = pyo.SolverFactory(config['master_config']['solver'])
 
@@ -256,14 +217,14 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         iteration_analysis_directory_path = analysis_directory_path.joinpath(f'iter_{iteration_index}')
         iteration_analysis_directory_path.mkdir()
         
-        print(f'[iter {iteration_index}] Start master solving process... ', end='')
+        print(f'[iter {iteration_index}] Starting master solving process... ', end='')
         master_solving_start_time = time.perf_counter()
         
         log_file_path = iteration_logs_directory_path.joinpath('master_log.log')
         master_model_results = master_opt.solve(master_model, tee=False, warmstart=config['warm_start_master'], logfile=log_file_path)
 
         master_solving_end_time = time.perf_counter()
-        print(f'end ({master_solving_end_time - master_solving_start_time}s).')
+        print(f'ended ({master_solving_end_time - master_solving_start_time}s).')
 
         master_model.solutions.store_to(master_model_results)
         solution = master_model_results.solution[0]
@@ -329,13 +290,13 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             with open(subproblem_instance_analysis_file_name, 'w') as file:
                 json.dump(subproblem_instance_analysis, file, indent=4)
 
-            print(f'[iter {iteration_index}] Start subproblem model creation for day \'{day_name}\'... ', end='')
+            print(f'[iter {iteration_index}] Starting subproblem model creation for day \'{day_name}\'... ', end='')
             subproblem_model_creation_start_time = time.perf_counter()
 
             subproblem_model = get_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
 
             subproblem_model_creation_end_time = time.perf_counter()
-            print(f'end ({subproblem_model_creation_end_time - subproblem_model_creation_start_time}s).')
+            print(f'ended ({round(subproblem_model_creation_end_time - subproblem_model_creation_start_time, 4)}s).')
 
             subproblem_opt = pyo.SolverFactory(config['subproblem_config']['solver'])
 
@@ -347,14 +308,14 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             if 'max_memory' in config['subproblem_config']:
                 subproblem_opt.options['SoftMemLimit'] = config['subproblem_config']['max_memory']
 
-            print(f'[iter {iteration_index}] Start subproblem solving process for day \'{day_name}\'... ', end='')
+            print(f'[iter {iteration_index}] Starting subproblem solving process for day \'{day_name}\'... ', end='')
             subproblem_solving_start_time = time.perf_counter()
             
             log_file_path = iteration_logs_directory_path.joinpath(f'subproblem_day_{day_name}_log.log')
             subproblem_model_results = subproblem_opt.solve(subproblem_model, tee=False, logfile=log_file_path)
 
             subproblem_solving_end_time = time.perf_counter()
-            print(f'end ({subproblem_solving_end_time - subproblem_solving_start_time}s).')
+            print(f'ended ({round(subproblem_solving_end_time - subproblem_solving_start_time, 4)}s).')
 
             subproblem_model.solutions.store_to(subproblem_model_results)
             solution = subproblem_model_results.solution[0]
