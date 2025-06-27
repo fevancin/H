@@ -1,5 +1,5 @@
 % Programma che prende in input un grafo bipartito e calcola un matching in
-% maniera tale che ogni vertice di sinistra scelga un compagno.
+% maniera tale che ogni vertice di sinistra scelga un vertice di destra.
 % 
 % L'input deve specificare l'elenco di archi del grafo nella forma:
 % arc(pat1, srv1, pat2, srv2).

@@ -1,0 +1,103 @@
+# Modello che rappresenta il punto di partenza per la configurazione di ogni
+# gruppo. I parametri possono essere sia numeri che oggetti aventi una delle
+# seguenti strutture:
+# - {min, max}
+# - {min, max, mode}
+base:
+    instance_number: 10 # numero di istanze nel gruppo
+    seed: 100 # seme per la generazione pseudocasuale
+
+    day_number: 32 # numero di giorni
+    care_unit_number: 4 # numero di unità di cura in ogni giorno
+    operator_number: 2 # numero di operatori in ogni unità di cura
+    time_slots: 32 # unità di tempo in cui gli operatori sono attivi
+
+    patient_number: 32 # numero atteso di pazienti (può essere di poco minore)
+    request_window_max_size: 7 # massima dimensione delle finestre di richiesta
+
+    service_number: 32 # Numero di servizi da cui ogni richiesta attingerà
+    service_duration: {'min': 2, 'max': 12, 'mode': 3} # durata delle richieste
+
+    # quantità complessiva di richieste /in percentuale) rispetto al totale di
+    # slot temporali sommando ogni giorno, unità di cura e operatore
+    request_per_disponibility_ratio: 1.25
+
+    # Percentuale di richieste dello stesso paziente che avranno la medesima
+    # sequenza di finestre di altre richieste ma di un altro servizio
+    requests_likeness_percentage: 0.10
+
+# Ogni elemento in questo oggetto corrisponde ad un differente gruppo di istanze
+# che condivideranno la medesima configurazione. Ciò che compare viene aggiunto
+# o sovrascritto ogni volta a copie della configurazione di base.
+groups:
+
+    32pat_1cu_8op:
+        care_unit_number: 1
+        operator_number: 8
+        patient_number: 32
+    32pat_2cu_4op:
+        care_unit_number: 2
+        operator_number: 4
+        patient_number: 32
+    32pat_4cu_2op:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 32
+    32pat_8cu_1op:
+        care_unit_number: 8
+        operator_number: 1
+        patient_number: 32
+    
+    64pat_1cu_8op:
+        care_unit_number: 1
+        operator_number: 8
+        patient_number: 64
+    64pat_2cu_4op:
+        care_unit_number: 2
+        operator_number: 4
+        patient_number: 64
+    64pat_4cu_2op:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 64
+    64pat_8cu_1op:
+        care_unit_number: 8
+        operator_number: 1
+        patient_number: 64
+
+    128pat_4cu_2op:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 128
+    
+    32pat_4cu_2op_10like:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 32
+        requests_likeness_percentage: 0.10
+    32pat_4cu_2op_25like:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 32
+        requests_likeness_percentage: 0.25
+    32pat_4cu_2op_50like:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 32
+        requests_likeness_percentage: 0.50
+    
+    64pat_4cu_2op_10like:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 64
+        requests_likeness_percentage: 0.10
+    64pat_4cu_2op_25like:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 64
+        requests_likeness_percentage: 0.25
+    64pat_4cu_2op_50like:
+        care_unit_number: 4
+        operator_number: 2
+        patient_number: 64
+        requests_likeness_percentage: 0.50

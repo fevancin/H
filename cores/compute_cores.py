@@ -1,10 +1,10 @@
 import pyomo.environ as pyo
 
 
-def compute_dumb_cores(all_subproblem_results):
-    """Questa funzione calcola la lista dei core generati a partire da ciascun
+def compute_generalist_cores(all_subproblem_results):
+    '''Questa funzione calcola la lista dei core generati a partire da ciascun
     giorno contenente qualcosa di non schedulato. Tutte le richieste di quel
-    giorno vengono aggiunte al core senza distinzione di schedulazione."""
+    giorno vengono aggiunte al core senza distinzione di schedulazione.'''
     
     cores = []
     
@@ -39,9 +39,9 @@ def compute_dumb_cores(all_subproblem_results):
 
 
 def compute_basic_cores(all_subproblem_results):
-    """Questa funzione calcola la lista dei core generati a partire da ciascuna
+    '''Questa funzione calcola la lista dei core generati a partire da ciascuna
     singola richiesta non schedulata. Ciascun core basico conterrà una singola
-    richiesta non schedulata e tutte quelle schedulate in quel giorno."""
+    richiesta non schedulata e tutte quelle schedulate in quel giorno.'''
     
     cores = []
     
@@ -78,12 +78,12 @@ def compute_basic_cores(all_subproblem_results):
 
 
 def compute_reduced_cores(all_subproblem_results, master_instance):
-    """Questa funzione calcola la lista dei core generati a partire da ciascuna
+    '''Questa funzione calcola la lista dei core generati a partire da ciascuna
     singola richiesta non schedulata. Ciascun core ridotto conterrà una singola
     richiesta non schedulata e tutte quelle schedulate che hanno il paziente o
     l'unità di cura in comune. Si aggiungono pazienti e unità di cura ogni volta
     che qualcosa di nuovo viene inserito fra le componenti fino a che si ottiene
-    un sottoinsieme chiuso in questo senso."""
+    un sottoinsieme chiuso in questo senso.'''
     
     cores = []
 
@@ -200,12 +200,12 @@ def compute_reduced_cores(all_subproblem_results, master_instance):
 
 
 def aggregate_and_remove_duplicate_cores(new_cores, prev_cores):
-    """Questa funzione si occupa della rimozione dalla lista dei nuovi core
+    '''Questa funzione si occupa della rimozione dalla lista dei nuovi core
     generati da una iterazione quando questi hanno le medesime componenti di un
     qualche core delle iterazioni passate. Se un nuovo core trova una di queste
     corrispondenze, gli eventuali nuovi giorni in cui è valido vengono aggiunti
     a quelli del core già valido. La funzione ritorna una coppia con (1) la
-    lista dei nuovi core senza duplicati e (2) la lista dei core complessivi."""
+    lista dei nuovi core senza duplicati e (2) la lista dei core complessivi.'''
 
     # Ogni core presente in 'new_cores' ma non in 'prev_cores' sarà aggiunto in questa lista.
     # Per essere considerati uguali i core devono possedere le stesse esatte componenti ground.
@@ -269,13 +269,13 @@ def aggregate_and_remove_duplicate_cores(new_cores, prev_cores):
 
 
 def add_cores_constraint_class_to_master_model(master_model):
-    """Funzione che crea la classe di vincoli nel modello MILP del master."""
+    '''Funzione che crea la classe di vincoli nel modello MILP del master.'''
     
     master_model.cores = pyo.ConstraintList()
 
 
 def add_cores_constraints_to_master_model(master_model, cores):
-    """Per ogni core nella lista fornita viene creato ed insterito nel modello
+    '''Per ogni core nella lista fornita viene creato ed insterito nel modello
     un nuovo vincolo che vieta la comparsa delle sue componenti nei giorni
     specificati.
 
@@ -283,7 +283,7 @@ def add_cores_constraints_to_master_model(master_model, cores):
     
     dove |core| è il numero di componenti del core e do[p,s,d] sono le variabili
     realtive alla schedulazione delle componenti. Il vincolo viene ripetuto ed
-    inserito per ogni giorno 'd' in cui il core è valido."""
+    inserito per ogni giorno 'd' in cui il core è valido.'''
 
     for core in cores:
 

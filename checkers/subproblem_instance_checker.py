@@ -16,10 +16,24 @@ def check_patient(patient, patient_name):
     if type(patient['requests']) is not list:
         raise TypeError(f'patient \'{patient_name}\' \'requests\' is not a list')
     
-    for service_name in patient['requests']:
+    if len(patient['requests']) > 0 and type(patient['requests'][0]) is str:
         
-        if type(service_name) is not str:
-            raise TypeError(f'\'{service_name}\' of patient \'{patient_name}\' requests is not a string')
+        for service_name in patient['requests']:
+            if type(service_name) is not str:
+                raise TypeError(f'\'{service_name}\' of patient \'{patient_name}\' requests is not a string')
+
+    else:
+        for request in patient['requests']:
+            
+            if type(request) is not dict:
+                raise TypeError(f'patient \'{patient_name}\' has wrong requests type')
+            if len(request) != 3:
+                raise TypeError(f'patient \'{patient_name}\' request has wrong key number')
+            for key in ['service', 'care_unit', 'operator']:
+                if key not in request:
+                    raise KeyError(f'key \'{key}\' is not present in request of patient \'{patient_name}\'')
+                if type(request[key]) is not str:
+                    raise TypeError(f'key \'{key}\' in patient \'{patient_name}\' request is not a string')
 
 
 def check_patients(patients):
@@ -39,6 +53,18 @@ def check_requests_integrity(instance):
     
     for patient_name, patient in instance['patients'].items():
         for service_name in patient['requests']:
+
+            if type(service_name) is dict:
+                request = service_name
+                service_name = request['service']
+                operator_name = request['operator']
+                care_unit_name = request['care_unit']
+
+                if care_unit_name != instance['services'][service_name]['care_unit']:
+                    raise ValueError(f'service {service_name} of patient {patient_name} has a different care unit from the one requested')
+
+                if operator_name not in instance['day'][care_unit_name].keys():
+                    raise KeyError(f'service {service_name} of patient {patient_name} has operator {operator_name} that does not exists in care unit {care_unit_name}')
 
             if service_name not in instance['services']:
                 raise KeyError(f'service \'{service_name}\' of patient \'{patient_name}\' does not exists')

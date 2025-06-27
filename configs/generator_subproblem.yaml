@@ -1,0 +1,45 @@
+# Modello che rappresenta il punto di partenza per la configurazione di ogni
+# gruppo. I parametri possono essere sia numeri che oggetti aventi una delle
+# seguenti strutture:
+# - {min, max}
+# - {min, max, mode}
+base:
+    instance_number: 10 # numero di istanze nel gruppo
+    seed: 100 # seme per la generazione pseudocasuale
+
+    care_unit_number: 4 # numero di unità di cura
+    operator_number: 2 # numero di operatori in ogni unità di cura
+    time_slots: 16 # unità di tempo in cui gli operatori sono attivi
+
+    patient_number: 32 # numero atteso di pazienti (può essere di poco minore)
+
+    service_duration: {'min': 2, 'max': 12, 'mode': 3} # durata delle richieste
+
+    operator_pre_chosen: false
+
+# Ogni elemento in questo oggetto corrisponde ad un differente gruppo di istanze
+# che condivideranno la medesima configurazione. Ciò che compare viene aggiunto
+# o sovrascritto ogni volta a copie della configurazione di base
+groups:
+
+    small_subproblem_fat_group:
+        instance_number: 2
+        care_unit_number: 2
+        operator_number: 2
+        time_slots: 8
+        patient_number: 8
+    
+    small_subproblem_slim_group:
+        instance_number: 2
+        care_unit_number: 2
+        operator_number: 2
+        time_slots: 8
+        patient_number: 8
+        operator_pre_chosen: true
+
+    sub_32pat:
+        patient_number: 32
+    sub_16pat:
+        patient_number: 16
+    sub_8pat:
+        patient_number: 8

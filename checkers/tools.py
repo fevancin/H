@@ -1,8 +1,3 @@
-from pathlib import Path
-import argparse
-import json
-import time
-
 def check_service(service, service_name):
 
     if type(service) is not dict:
@@ -84,26 +79,31 @@ def check_results_general_shape(results):
         if key not in results:
             raise KeyError(f'\'{key}\' is not present in instance results')
 
-    if len(results) != 3:
-        if len(results) == 4 and 'info' not in results:
-            raise KeyError('Unknown keys in instance')
-        else:
-            raise KeyError('Unknown keys in instance')
+    if len(results) != 2:
+        raise KeyError('Unknown keys in instance')
     
 
 def check_schedule_item_without_window(schedule_item, day_name=None):
 
     if type(schedule_item) is not dict:
         raise TypeError(f'day \'{day_name}\' schedule item is not a dict')
-    if len(schedule_item) != 2:
+    
+    if len(schedule_item) == 2:
+        for key in ['patient', 'service']:
+            if key not in schedule_item:
+                raise KeyError(f'\'{key}\' is not present in schedule_item of day \'{day_name}\'')
+            if type(schedule_item[key]) is not str:
+                raise ValueError(f'schedule_item of day \'{day_name}\' \'{key}\' is not a string')
+    
+    elif len(schedule_item) == 4:
+        for key in ['patient', 'service', 'care_unit', 'operator']:
+            if key not in schedule_item:
+                raise KeyError(f'\'{key}\' is not present in schedule_item of day \'{day_name}\'')
+            if type(schedule_item[key]) is not str:
+                raise ValueError(f'schedule_item of day \'{day_name}\' \'{key}\' is not a string')
+    
+    else:
         raise ValueError(f'day \'{day_name}\' schedule item has not the correct form')
-
-    for key in ['patient', 'service']:
-        
-        if key not in schedule_item:
-            raise KeyError(f'\'{key}\' is not present in schedule_item of day \'{day_name}\'')
-        if type(schedule_item[key]) is not str:
-            raise ValueError(f'schedule_item of day \'{day_name}\' \'{key}\' is not a string')
         
 
 def check_schedule_without_window(schedule, day_name=None):
@@ -191,7 +191,6 @@ def check_integrity_schedule_basic(schedule, instance, day_name=None):
 
 
 def check_integrity_schedule_with_window(schedule, instance):
-
     check_integrity_schedule_basic(schedule, instance)
 
 
@@ -310,72 +309,13 @@ def check_integrity_schedule_with_time(schedule, instance, day_name=None):
     check_integrity_schedule_with_time_overlap(schedule, instance, day_name)
 
 
-def get_protocol_service_windows(protocol_service, max_day_index):
-
-    start = protocol_service['start']
-    tolerance = protocol_service['tolerance']
-    frequency = protocol_service['frequency']
-    times = protocol_service['times']
-
-    if times == 1:
-        windows = [{
-            'start': start - tolerance,
-            'end': start + tolerance
-        }]
-    else:
-        windows = []
-        for middle_day in range(start, start + frequency * times, frequency):
-            windows.append({
-                'start': middle_day - tolerance,
-                'end': middle_day + tolerance
-            })
-    
-    for window in windows:
-        if window['start'] < 0:
-            window['start'] = 0
-        if window['end'] > max_day_index:
-            window['end'] = max_day_index
-    
-    return windows
-
-
-def get_protocol_windows(protocol, max_day_index):
-
-    windows = {}
-    for protocol_service in protocol['protocol_services']:
-        service_name = protocol_service['service']
-        if service_name not in windows:
-            windows[service_name] = []
-        windows[service_name].extend(get_protocol_service_windows(protocol_service, max_day_index))
-    
-    return windows
-
-
-def get_patient_windows(patient, max_day_index):
+def check_integrity_protocols_represented(results, instance):
 
     patient_windows = {}
-
-    for protocol in patient['protocols'].values():
-        
-        protocol_windows = get_protocol_windows(protocol, max_day_index)
-        for service_name, windows in protocol_windows.items():
-            if service_name not in patient_windows:
-                patient_windows[service_name] = []
-            patient_windows[service_name].extend(windows)
-
-    return patient_windows
-
-
-def get_patients_windows(patients, max_day_index):
-
-    patients_windows = {}
-    for patient_name, patient in patients.items():
-        patients_windows[patient_name] = get_patient_windows(patient, max_day_index)
-    
-    return patients_windows
-
-
-def check_integrity_protocols_represented(results, instance):
+    for patient_name, patient in instance['patients'].items():
+        patient_windows[patient_name] = {}
+        for service_name, windows in patient['requests'].items():
+            patient_windows[patient_name][service_name] = windows
 
     for day_name, schedule in results['scheduled'].items():
         day_index = int(day_name)
@@ -385,45 +325,62 @@ def check_integrity_protocols_represented(results, instance):
             service_name = schedule_item['service']
             
             if patient_name not in instance['patients'] or service_name not in instance['patients'][patient_name]['requests']:
-                raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\'')
+                raise ValueError(f'patient \'{patient_name}\' does not request service \'{service_name}\'')
             
+            if patient_name not in patient_windows:
+                raise ValueError(f'patient {patient_name} does not request anything more')
+            if service_name not in patient_windows[patient_name]:
+                raise ValueError(f'patient {patient_name} does not request anymore service {service_name}')
+
             window_found = False
-            for window in instance['patients'][patient_name]['requests'][service_name]:
+            remaining_windows = []
+
+            for window in patient_windows[patient_name][service_name]:
                 if window[0] <= day_index and window[1] >= day_index:
                     window_found = True
-                    break
+                else:
+                    remaining_windows.append(window)
+            
             if not window_found:
                 print(instance['patients'][patient_name]['requests'][service_name])
-                raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' in day \'{day_name}\'')
+                raise ValueError(f'patient \'{patient_name}\' does not request service \'{service_name}\' in day \'{day_name}\'')
             
-    # for schedule_item in results['rejected']:
+            if len(remaining_windows) == 0:
+                del patient_windows[patient_name][service_name]
+                if len(patient_windows[patient_name]) == 0:
+                    del patient_windows[patient_name]
+            else:
+                patient_windows[patient_name][service_name] = remaining_windows
+                    
+    for schedule_item in results['rejected']:
 
-    #     patient_name = schedule_item['patient']
-    #     service_name = schedule_item['service']
-    #     window = schedule_item['window']
+        patient_name = schedule_item['patient']
+        service_name = schedule_item['service']
+        patient_window = schedule_item['window']
 
-    #     if patient_name not in patients_windows:
-    #         raise ValueError(f'patient \'{patient_name}\' already fully satisfied (no service \'{service_name}\' with window [{window[0]}, {window[1]}])')
-    #     if service_name not in patients_windows[patient_name]:
-    #         raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' with window [{window[0]}, {window[1]}]')
+        if patient_name not in patient_windows:
+            raise ValueError(f'patient \'{patient_name}\' already fully satisfied (no service \'{service_name}\' with window [{window[0]}, {window[1]}])')
+        if service_name not in patient_windows[patient_name]:
+            raise ValueError(f'patient \'{patient_name}\' does not request service \'{service_name}\' with window [{patient_window[0]}, {patient_window[1]}]')
         
-    #     window_found = False
-    #     remaining_windows = []
-    #     for patient_window in patients_windows[patient_name][service_name]:
-    #         if patient_window['start'] == window[0] and patient_window['end'] == window[1]:
-    #             window_found = True
-    #         else:
-    #             remaining_windows.append(patient_window)
-    #     if not window_found:
-    #         raise ValueError(f'patient \'{patient_name}\' do not request service \'{service_name}\' in window [{window[0]}, {window[1]}]')
-        
-    #     if len(remaining_windows) == 0:
-    #         del patients_windows[patient_name][service_name]
-    #     else:
-    #         patients_windows[patient_name][service_name] = remaining_windows
-        
-    #     if len(patients_windows[patient_name]) == 0:
-    #         del patients_windows[patient_name]
+        window_found = False
+        remaining_windows = []
 
-    # if len(patients_windows) != 0:
-    #     raise ValueError(f'some request are not in the results: {patients_windows}')
+        for window in patient_windows[patient_name][service_name]:
+            if patient_window[0] == window[0] and patient_window[1] == window[1]:
+                window_found = True
+            else:
+                remaining_windows.append(window)
+
+        if not window_found:
+            raise ValueError(f'patient \'{patient_name}\' does not request service \'{service_name}\' in window [{window[0]}, {window[1]}]')
+        
+        if len(remaining_windows) == 0:
+            del patient_windows[patient_name][service_name]
+            if len(patient_windows[patient_name]) == 0:
+                del patient_windows[patient_name]
+        else:
+            patient_windows[patient_name][service_name] = remaining_windows
+        
+    if len(patient_windows) != 0:
+        raise ValueError(f'some request are not in the results: {patient_windows}')

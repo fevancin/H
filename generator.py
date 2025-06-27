@@ -124,6 +124,9 @@ def generate_master_instance(config) -> dict:
     request_per_disponibility_ratio = get_config_value(config['request_per_disponibility_ratio'])
     requests_likeness_percentage = get_config_value(config['requests_likeness_percentage'])
 
+    if request_window_max_size > day_number:
+        request_window_max_size = day_number
+
     # Generazione dei giorni days[day][cu][op] = {start, duration}
     days = generate_days(config)
 
@@ -196,7 +199,7 @@ def generate_master_instance(config) -> dict:
         # 1.0 - 'requests_likeness_percentage'
         else:
             window_size = random.randint(1, request_window_max_size)
-            start_day = random.randint(0, day_number - window_size - 1)
+            start_day = random.randint(0, day_number - window_size)
             window = (start_day, start_day + window_size - 1)
 
         # Inserimento della finestra
@@ -210,6 +213,11 @@ def generate_master_instance(config) -> dict:
 
     # Eliminazione dei pazienti senza nessuna richiesta
     patients = dict(filter(lambda p: len(p[1]['requests']) > 0, patients.items()))
+
+    # Ordina le richieste
+    for patient in patients.values():
+        for windows in patient['requests'].values():
+            windows.sort()
 
     return {
         'patients': patients,
@@ -229,7 +237,6 @@ def generate_subproblem_instance(config) -> dict:
     
     # Massimo tempo in cui almeno un operatore è attivo
     max_time_slot = max(o['start'] + o['duration'] for c in day.values() for o in c.values())
-
 
     # Elenco dei nomi degli operatori
     operator_names = [(cn, on) for cn, c in day.items() for on in c.keys()]
@@ -280,10 +287,24 @@ def generate_subproblem_instance(config) -> dict:
         
         # Aggiunta della richiesta corrente
         services[service_name] = service
-        patients[pn]['requests'].append(service_name)
+
+        if 'operator_pre_chosen' in config and config['operator_pre_chosen']:
+            patients[pn]['requests'].append({
+                'service': service_name,
+                'care_unit': cn,
+                'operator': on
+            })
+            
+        else:
+            patients[pn]['requests'].append(service_name)
 
     # Eliminazione dei pazienti senza nessuna richiesta
     patients = dict(filter(lambda p: len(p[1]['requests']) > 0, patients.items()))
+
+    # Ordina le richieste
+    if 'operator_pre_chosen' not in config or not config['operator_pre_chosen']:
+        for patient in patients.values():
+            patient['requests'].sort()
 
     return {
         'patients': patients,
@@ -293,19 +314,13 @@ def generate_subproblem_instance(config) -> dict:
 
 
 # Argomenti da linea di comando
-parser = argparse.ArgumentParser(
-    prog='Instance generator',
-    description='Program that generates master or subproblem instances.')
+parser = argparse.ArgumentParser(prog='Generate instances', description='Program that generates master or subproblem instances.')
 
-parser.add_argument('-v', '--verbose', action='store_true')
-parser.add_argument('-c', '--config', required=True, type=pathlib.Path,
-    help='Location of a YAML generator configuration file.')
-parser.add_argument('-o', '--output', required=True, type=pathlib.Path,
-    help='Location where instance groups will be written.')
+parser.add_argument('-c', '--config', required=True, type=pathlib.Path, help='Location of a YAML generator configuration file.')
+parser.add_argument('-o', '--output', required=True, type=pathlib.Path, help='Location where instance groups will be written.')
 
 args = parser.parse_args()
 
-is_verbose = bool(args.verbose)
 config_file_path = pathlib.Path(args.config)
 output_directory_path = pathlib.Path(args.output)
 
@@ -317,30 +332,28 @@ if config_file_path.suffix != '.yaml':
 if output_directory_path.suffix != '':
     raise FileNotFoundError(f'Path \'{output_directory_path}\' is not a directory.')
 
-# eventuale creazione della cartella di output
+# Eventuale creazione della cartella di output
 if not output_directory_path.exists():
     output_directory_path.mkdir()
-    
-    if is_verbose:
-        print(f'Created output directory.')
+    print(f'Created output directory {output_directory_path}.')
 
 # Lettura del file di configurazione
 with open(config_file_path) as file:
     config = yaml.load(file, yaml.Loader)
 
-if is_verbose:
-    print('Succesfully read the configuration file.')
+print('Succesfully read the configuration file.')
+
+total_instance_number = 0
+total_group_number = 0
 
 # Generazione dei gruppo
 for group_name, group_changes in config['groups'].items():
 
     # Creazione della cartella del gruppo corrente
     group_directory_path = output_directory_path.joinpath(group_name)
-
-    if is_verbose and not output_directory_path.exists():
+    if not group_directory_path.exists():
+        group_directory_path.mkdir()
         print(f'Group directory \'{group_name}\' does not exist, creating it.')
-    
-    group_directory_path.mkdir(exist_ok=True)
 
     # Sovrascrittura delle configurazioni di base per ottenere la configurazione
     # del gruppo corrente
@@ -355,8 +368,11 @@ for group_name, group_changes in config['groups'].items():
     
     random.seed(get_config_value(group_config['seed']))
     
-    # Generazione del gruppo corrente
     instance_number = get_int_config_value(group_config['instance_number'])
+    total_instance_number += instance_number
+    total_group_number += 1
+
+    # Generazione del gruppo corrente
     for instance_index in range(instance_number):
 
         instance_name = f'inst_{instance_index:02}.json'
@@ -371,5 +387,6 @@ for group_name, group_changes in config['groups'].items():
         with open(instance_file_path, 'w') as file:
            file.write(jsbeautifier.beautify(json.dumps(instance)))
         
-    if is_verbose:
-        print(f'Generated {instance_number} instances in group \'{group_name}\'.')
+    print(f'Generated {instance_number} instances in group \'{group_name}\'.')
+
+print(f'End of the generation process. Generated {total_instance_number} instances in {total_group_number} groups.')

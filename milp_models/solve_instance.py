@@ -12,21 +12,43 @@ from checkers.subproblem_instance_checker import check_subproblem_instance
 from checkers.subproblem_results_checker import check_subproblem_results
 from checkers.final_results_checker import check_final_results
 
-from solvers.master_solver import get_master_model, get_results_from_master_model
-from solvers.master_solver import add_objective_value_constraints
-from solvers.subproblem_solver import get_subproblem_model, get_results_from_subproblem_model
+from milp_models.master_model import get_slim_master_model, get_results_from_slim_master_model
+from milp_models.subproblem_model import get_fat_subproblem_model, get_results_from_fat_subproblem_model
+from milp_models.master_model import add_optimality_constraints
 
-from cores.compute_cores import compute_dumb_cores, compute_basic_cores, compute_reduced_cores, aggregate_and_remove_duplicate_cores
+from cores.compute_cores import compute_generalist_cores, compute_basic_cores, compute_reduced_cores, aggregate_and_remove_duplicate_cores
 from cores.compute_cores import add_cores_constraint_class_to_master_model, add_cores_constraints_to_master_model
 from cores.expand_core_days import compute_expanded_days, expand_core_days, remove_core_days_without_exact_requests
 from cores.expand_core_patients_services import get_max_possible_master_requests, expand_core_patients_services
 
-from analyzers.tools import get_master_results_value, get_subproblem_results_value
-from analyzers.master_instance_analyzer import analyze_master_instance
-from analyzers.master_results_analyzer import analyze_master_results
-from analyzers.subproblem_instance_analyzer import analyze_subproblem_instance
-from analyzers.subproblem_results_analyzer import analyze_subproblem_results
-from analyzers.final_results_analyzer import analyze_final_results, get_final_results_value
+
+def get_subproblem_results_value(master_instance, master_results, day_name):
+
+    value = 0
+    for schedule_item in master_results['scheduled'][day_name]:
+        
+        service_name = schedule_item['service']
+        service_duration = master_instance['services'][service_name]['duration']
+        
+        patient_name = schedule_item['patient']
+        patient_priority = master_instance['patients'][patient_name]['priority']
+        
+        value += service_duration * patient_priority
+    
+    return value
+
+
+def get_master_results_value(master_instance, master_results):
+
+    value = 0
+    for day_name in master_results['scheduled']:
+        value += get_subproblem_results_value(master_instance, master_results, day_name)
+    
+    return value
+
+
+def get_final_results_value(master_instance, final_results):
+    return get_master_results_value(master_instance, final_results)
 
 
 def compute_subproblem_instance_from_master(master_instance, master_results, day_name):
@@ -61,7 +83,6 @@ def compose_final_results(master_instance, master_results, all_subproblem_result
         all_scheduled_results[day_name] = subproblem_results['scheduled']
     
     final_results = {
-        'info': master_results['info'],
         'scheduled': all_scheduled_results,
         'rejected': master_results['rejected']
     }
@@ -96,26 +117,6 @@ def compose_final_results(master_instance, master_results, all_subproblem_result
             unique_rejected.append(rejected_1)
     final_results['rejected'] = sorted(unique_rejected, key=lambda r: (r['patient'], r['service'], r['window'][0], r['window'][1]))
 
-    true_results_objective_function_value = 0
-    true_results_lower_bound = 0
-    true_results_upper_bound = 0
-
-    for subproblem_results in all_subproblem_results.values():
-
-        true_results_objective_function_value += subproblem_results['info']['objective_function_value']
-        true_results_lower_bound += subproblem_results['info']['lower_bound']
-        true_results_upper_bound += subproblem_results['info']['upper_bound']
-        
-        final_results['info']['model_creation_time'] += subproblem_results['info']['model_creation_time']
-        final_results['info']['model_solving_time'] += subproblem_results['info']['model_solving_time']
-        final_results['info']['solver_internal_time'] += subproblem_results['info']['solver_internal_time']
-    
-    final_results['info']['objective_function_value'] = true_results_objective_function_value
-    final_results['info']['solution_value'] = true_results_objective_function_value
-    final_results['info']['lower_bound'] = true_results_lower_bound
-    final_results['info']['upper_bound'] = true_results_upper_bound
-    final_results['info']['gap'] = (true_results_upper_bound - true_results_lower_bound) / true_results_upper_bound
-
     return final_results
 
 
@@ -137,31 +138,22 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
     input_directory_path.mkdir()
 
     results_directory_path = output_directory_path.joinpath('results')
-    results_directory_path.mkdir(exist_ok=True)
+    results_directory_path.mkdir()
 
     cores_directory_path = output_directory_path.joinpath('cores')
-    cores_directory_path.mkdir(exist_ok=True)
+    cores_directory_path.mkdir()
 
     logs_directory_path = output_directory_path.joinpath('logs')
-    logs_directory_path.mkdir(exist_ok=True)
-
-    analysis_directory_path = output_directory_path.joinpath('analysis')
-    analysis_directory_path.mkdir(exist_ok=True)
+    logs_directory_path.mkdir()
 
     master_instance_file_path = input_directory_path.joinpath('master_instance.json')
     with open(master_instance_file_path, 'w') as file:
         json.dump(master_instance, file, indent=4)
 
-    solver_config_file_path = output_directory_path.joinpath('solver_config.yaml')
-    with open(solver_config_file_path, 'w') as file:
+    config_file_path = output_directory_path.joinpath('solver_config.yaml')
+    with open(config_file_path, 'w') as file:
         yaml.dump(config, file, default_flow_style=False, sort_keys=False)
 
-    master_instance_analysis = analyze_master_instance(master_instance, master_instance_file_path)
-    master_instance_analysis_file_path = analysis_directory_path.joinpath('master_instance_analysis.json')
-    with open(master_instance_analysis_file_path, 'w') as file:
-        json.dump(master_instance_analysis, file, indent=4)
-
-    print(f'Solving instance \'{master_instance_file_path}\'')
     total_start_time = time.perf_counter()
 
     max_possible_master_requests = get_max_possible_master_requests(master_instance)
@@ -172,10 +164,10 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         with open(expanded_days_file_path, 'w') as file:
             json.dump(expanded_days, file, indent=4)
 
-    print(f'Started master model creation... ', end='')
+    print(f'Master model creation... ', end='')
     master_model_creation_start_time = time.perf_counter()
 
-    master_model = get_master_model(master_instance, config['additional_master_info'])
+    master_model = get_slim_master_model(master_instance, config['additional_master_info'])
 
     add_cores_constraint_class_to_master_model(master_model)
 
@@ -208,20 +200,15 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         iteration_results_directory_path = results_directory_path.joinpath(f'iter_{iteration_index}')
         iteration_results_directory_path.mkdir()
 
-        iteration_cores_directory_path = cores_directory_path.joinpath(f'iter_{iteration_index}')
-        iteration_cores_directory_path.mkdir()
-
         iteration_logs_directory_path = logs_directory_path.joinpath(f'iter_{iteration_index}')
         iteration_logs_directory_path.mkdir()
-
-        iteration_analysis_directory_path = analysis_directory_path.joinpath(f'iter_{iteration_index}')
-        iteration_analysis_directory_path.mkdir()
         
-        print(f'[iter {iteration_index}] Starting master solving process... ', end='')
+        master_log_file_path = iteration_logs_directory_path.joinpath('master_log.log')
+
+        print(f'[iter {iteration_index}] Solving master... ', end='')
         master_solving_start_time = time.perf_counter()
         
-        log_file_path = iteration_logs_directory_path.joinpath('master_log.log')
-        master_model_results = master_opt.solve(master_model, tee=False, warmstart=config['warm_start_master'], logfile=log_file_path)
+        master_model_results = master_opt.solve(master_model, tee=False, warmstart=config['warm_start_master'], logfile=master_log_file_path)
 
         master_solving_end_time = time.perf_counter()
         print(f'ended ({master_solving_end_time - master_solving_start_time}s).')
@@ -233,9 +220,9 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         gap = float(solution['gap'])
         if gap <= 1e-5 and lower_bound != upper_bound:
             gap = (upper_bound - lower_bound) / upper_bound
-        value = float(solution['objective']['total_satisfied_service_durations']['Value'])
+        value = float(solution['objective']['objective_function']['Value'])
 
-        master_results = {'info': {
+        master_info = {'info': {
             'timestamp': datetime.now().strftime('%a_%d_%m_%Y_%H_%M_%S'),
             'model_creation_time': master_model_creation_end_time - master_model_creation_start_time,
             'model_solving_time': master_solving_end_time - master_solving_start_time,
@@ -248,7 +235,11 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             'objective_function_value': value
         }}
 
-        master_results.update(get_results_from_master_model(master_model))
+        master_info_file_path = iteration_logs_directory_path.joinpath(f'master_info.json')
+        with open(master_info_file_path, 'w') as file:
+            json.dump(master_info, file, indent=4)
+
+        master_results = get_results_from_slim_master_model(master_model)
 
         master_results_file_path = iteration_results_directory_path.joinpath('master_results.json')
         with open(master_results_file_path, 'w') as file:
@@ -261,11 +252,6 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
                 check_master_results(master_instance, master_results)
             except Exception as exception:
                 print(exception)
-
-        master_results_analysis = analyze_master_results(master_instance, master_results, master_instance_file_path)
-        master_results_analysis_file_name = iteration_analysis_directory_path.joinpath('master_results_analysis.json')
-        with open(master_results_analysis_file_name, 'w') as file:
-            json.dump(master_results_analysis, file, indent=4)
 
         all_subproblem_results = {}
         for day_name in master_results['scheduled'].keys():
@@ -285,18 +271,13 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
                 except Exception as exception:
                     print(exception)
 
-            subproblem_instance_analysis = analyze_subproblem_instance(subproblem_instance, subproblem_instance_file_path)
-            subproblem_instance_analysis_file_name = iteration_analysis_directory_path.joinpath('subproblem_instance_analysis.json')
-            with open(subproblem_instance_analysis_file_name, 'w') as file:
-                json.dump(subproblem_instance_analysis, file, indent=4)
-
-            print(f'[iter {iteration_index}] Starting subproblem model creation for day \'{day_name}\'... ', end='')
+            print(f'[iter {iteration_index}] Model creation for day \'{day_name}\'... ', end='')
             subproblem_model_creation_start_time = time.perf_counter()
 
-            subproblem_model = get_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
+            subproblem_model = get_fat_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
 
             subproblem_model_creation_end_time = time.perf_counter()
-            print(f'ended ({round(subproblem_model_creation_end_time - subproblem_model_creation_start_time, 4)}s).')
+            print(f'ended ({round(subproblem_model_creation_end_time - subproblem_model_creation_start_time, 4)}s). ', end='')
 
             subproblem_opt = pyo.SolverFactory(config['subproblem_config']['solver'])
 
@@ -308,11 +289,12 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             if 'max_memory' in config['subproblem_config']:
                 subproblem_opt.options['SoftMemLimit'] = config['subproblem_config']['max_memory']
 
-            print(f'[iter {iteration_index}] Starting subproblem solving process for day \'{day_name}\'... ', end='')
+            subproblem_log_file_path = iteration_logs_directory_path.joinpath(f'subproblem_day_{day_name}_log.log')
+
+            print(f'Solving... ', end='')
             subproblem_solving_start_time = time.perf_counter()
             
-            log_file_path = iteration_logs_directory_path.joinpath(f'subproblem_day_{day_name}_log.log')
-            subproblem_model_results = subproblem_opt.solve(subproblem_model, tee=False, logfile=log_file_path)
+            subproblem_model_results = subproblem_opt.solve(subproblem_model, tee=False, logfile=subproblem_log_file_path)
 
             subproblem_solving_end_time = time.perf_counter()
             print(f'ended ({round(subproblem_solving_end_time - subproblem_solving_start_time, 4)}s).')
@@ -324,9 +306,9 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             gap = float(solution['gap'])
             if gap <= 1e-5 and lower_bound != upper_bound:
                 gap = (upper_bound - lower_bound) / upper_bound
-            value = float(solution['objective']['total_satisfied_service_durations']['Value'])
+            value = float(solution['objective']['objective_function']['Value'])
 
-            subproblem_results = {'info': {
+            subproblem_info = {'info': {
                 'timestamp': datetime.now().strftime('%a_%d_%m_%Y_%H_%M_%S'),
                 'model_creation_time': subproblem_model_creation_end_time - subproblem_model_creation_start_time,
                 'model_solving_time': subproblem_solving_end_time - subproblem_solving_start_time,
@@ -338,8 +320,12 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
                 'gap': gap,
                 'objective_function_value': value
             }}
-        
-            subproblem_results.update(get_results_from_subproblem_model(subproblem_model))
+
+            subproblem_info_file_path = iteration_logs_directory_path.joinpath(f'subproblem_info_day_{day_name}.json')
+            with open(subproblem_info_file_path, 'w') as file:
+                json.dump(subproblem_info, file, indent=4)
+
+            subproblem_results = get_results_from_fat_subproblem_model(subproblem_model)
 
             subproblem_results_file_path = iteration_results_directory_path.joinpath(f'subproblem_day_{day_name}_results.json')
             with open(subproblem_results_file_path, 'w') as file:
@@ -352,11 +338,6 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
                     check_subproblem_results(subproblem_instance, subproblem_results)
                 except Exception as exception:
                     print(exception)
-
-            subproblem_results_analysis = analyze_subproblem_results(subproblem_instance, subproblem_results, subproblem_instance_file_path)
-            subproblem_results_analysis_file_name = iteration_analysis_directory_path.joinpath('subproblem_results_analysis.json')
-            with open(subproblem_results_analysis_file_name, 'w') as file:
-                json.dump(subproblem_results_analysis, file, indent=4)
 
             all_subproblem_results[day_name] = subproblem_results
         
@@ -380,24 +361,17 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             except Exception as exception:
                 print(exception)
 
-        final_results_analysis = analyze_final_results(master_instance, final_results, master_instance_file_path)
-        final_results_analysis_file_name = iteration_analysis_directory_path.joinpath('final_results_analysis.json')
-        with open(final_results_analysis_file_name, 'w') as file:
-            json.dump(final_results_analysis, file, indent=4)
-
         days_not_completely_solved = []
         for day_name, day_results in all_subproblem_results.items():
             if len(day_results['rejected']) > 0:
                 days_not_completely_solved.append(day_name)
         
         if len(days_not_completely_solved) == 0:
-            print(f'[iter {iteration_index}] All days are solved: exiting iteration cycle.') 
+            print(f'[iter {iteration_index}] [STOP] All days are solved: exiting iteration cycle.') 
             break
         else:
-            print(f'[iter {iteration_index}] Days [ ', end='')
-            for day_name in days_not_completely_solved:
-                print(f'{day_name} ', end='')
-            print('] are not completely solved')
+            days_str = ', '.join(days_not_completely_solved)
+            print(f'[iter {iteration_index}] Days [{days_str}] are not completely solved')
 
         if config['early_stop_percentage_between_master_and_subproblem'] > 0.0:
             
@@ -410,27 +384,32 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             min_difference = config['early_stop_percentage_between_master_and_subproblem']
             
             if (master_results_value - subproblems_results_value) / master_results_value <= min_difference:
-                print(f'[iter {iteration_index}] Master and subproblems reached the minimum value difference ({min_difference}%): exiting iteration cycle.') 
+                print(f'[iter {iteration_index}] [STOP] Master and subproblems reached the minimum value difference ({min_difference}%): exiting iteration cycle.') 
                 break
 
-        if 'use_objective_value_constraints' in config['additional_master_info']:
-            add_objective_value_constraints(master_model, master_instance, all_subproblem_results, max_possible_master_requests)
+        if 'use_optimality_constraints' in config['additional_master_info']:
+            add_optimality_constraints(master_model, master_instance, all_subproblem_results, max_possible_master_requests)
             
-        cores_analysis = {}
+        cores_info = {}
+
+        core_creation_start_time = time.perf_counter()
 
         # Calcola l'elenco di core a partire dalle richieste non schedulate:
-        # > Core dumb: tutto quanto è richiesto in un dato giorno,
+        # > Core generalist: tutto quanto è richiesto in un dato giorno,
         # > Core basic: ogni singola richiesta non schedulata più tutte
         #   quelle schedulate,
         # > Core reduced: ogni singola richiesta non schedulata più tutte
         #   quelle schedulate che hanno paziente o unità di cura
         #   influenzate, anche a catena.
-        if config['core_type'] == 'dumb':
-            current_iteration_cores = compute_dumb_cores(all_subproblem_results)
+        if config['core_type'] == 'generalist':
+            current_iteration_cores = compute_generalist_cores(all_subproblem_results)
         elif config['core_type'] == 'basic':
             current_iteration_cores = compute_basic_cores(all_subproblem_results)
         elif config['core_type'] == 'reduced':
             current_iteration_cores = compute_reduced_cores(all_subproblem_results, master_instance)
+
+        core_creation_end_time = time.perf_counter()
+        cores_info['core_creation_time'] = core_creation_end_time - core_creation_start_time
 
         if  config['expand_core_days'] or config['expand_core_patients'] or config['expand_core_services']:
             print(f'[iter {iteration_index}] {len(current_iteration_cores)} new cores are found.')
@@ -438,21 +417,21 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         core_number = len(current_iteration_cores)
 
         # Numero di core prima dell'eventuale espansione
-        cores_analysis['core_number_pre_expansion'] = core_number
+        cores_info['core_number_pre_expansion'] = core_number
         
         day_names = set()
         for core in current_iteration_cores:
             day_names.update(core['days'])
         
         # Numero di giorni che hanno almeno un core
-        cores_analysis['day_with_cores_pre_expansion'] = len(day_names)
+        cores_info['day_with_cores_pre_expansion'] = len(day_names)
 
         total_core_components_number = 0
         for core in current_iteration_cores:
             total_core_components_number += len(core['components'])
         
         # Numero medio di componenti dei core
-        cores_analysis['average_core_size_pre_expansion'] = total_core_components_number / core_number
+        cores_info['average_core_size_pre_expansion'] = total_core_components_number / core_number
     
         # Numero di core le cui componenti sono tutte quelle chieste dal master
         cores_equal_to_master_request = 0
@@ -468,10 +447,9 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             
             total_core_component_percentages += len(core['components']) / (len(daily_results['scheduled']) + len(daily_results['rejected']))
 
-        cores_analysis['number_of_core_equal_to_master_request'] = cores_equal_to_master_request
-        cores_analysis['percentage_of_core_equal_to_master_request'] = cores_equal_to_master_request / core_number
-
-        cores_analysis['average_percentage_of_core_done_by_subproblem'] = total_core_component_percentages / core_number
+        cores_info['number_of_core_equal_to_master_request'] = cores_equal_to_master_request
+        cores_info['percentage_of_core_equal_to_master_request'] = cores_equal_to_master_request / core_number
+        cores_info['average_percentage_of_core_done_by_subproblem'] = total_core_component_percentages / core_number
 
         # Se richiesto, aggiorna le liste dei giorni in cui i core sono
         # attivi con tutti quei giorni 'minori o uguali' nelle unità di
@@ -486,14 +464,23 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         # Numero medio di giorni in cui i core sono attivi,
         # dopo l'espansione dei giorni. Questo valore è uguale al numero
         # dei core se non è richiesta l'espansione dei giorni.
-        cores_analysis['average_day_number_per_core'] = total_day_number / len(current_iteration_cores)
+        cores_info['average_day_number_per_core'] = total_day_number / len(current_iteration_cores)
 
         # Se richiesta, effettua l'espansione dei nomi dei pazienti e/o
         # servizi, aggiornando la lista dei core dell'iterazione corrente.
         if config['expand_core_patients'] or config['expand_core_services']:
+            
+            core_expansion_start_time = time.perf_counter()
+            
             current_iteration_cores.extend(expand_core_patients_services(current_iteration_cores, max_possible_master_requests, master_instance, config['expand_core_patients'], config['expand_core_services'], config['max_expansions_per_core']))
+            
+            core_expansion_end_time = time.perf_counter()
+            cores_info['expansion_time'] = core_expansion_end_time - core_expansion_start_time
+            
             print(f'[iter {iteration_index}] {len(current_iteration_cores)} total new cores are present after expansion.')
         
+        core_postproc_start_time = time.perf_counter()
+
         # Se sono presenti più giorni, è possibile che alcuni core siano
         # relativi a richieste impossibili.
         if config['expand_core_days']:
@@ -503,26 +490,29 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         # Calcola e aggiorna i core togliendo eventuali duplicati
         current_iteration_cores, all_iterations_cores = aggregate_and_remove_duplicate_cores(current_iteration_cores, all_iterations_cores)
         
+        core_postproc_end_time = time.perf_counter()
+        cores_info['postproc_time'] = core_postproc_end_time - core_postproc_start_time
+
         print(f'[iter {iteration_index}] {len(current_iteration_cores)} cores remaining after removing duplicates.')
         
+        # Numero di core dopo le eventuali espansioni.
+        cores_info['core_number_post_name_expansion'] = len(current_iteration_cores)
+
         if len(current_iteration_cores) > 0:
             
-            # Numero di core dopo le eventuali espansioni.
-            cores_analysis['core_number_post_name_expansion'] = len(current_iteration_cores)
-
             total_core_components_number = 0
             for core in  current_iteration_cores:
                 total_core_components_number += len(core['components'])
             
             # Numero medio di componenti dei core
-            cores_analysis['average_core_size_post_name_expansion'] = total_core_components_number / len(current_iteration_cores)
+            cores_info['average_core_size_post_name_expansion'] = total_core_components_number / len(current_iteration_cores)
         
             # Se è presente almeno un core, aggiungi i vincoli nel modello MILP
             # del master.
             add_cores_constraints_to_master_model(master_model, current_iteration_cores)
 
         # Salvataggio su file dei core di questa iterazione.
-        cores_file_path = iteration_cores_directory_path.joinpath('cores.json')
+        cores_file_path = cores_directory_path.joinpath(f'iter_{iteration_index}_cores.json')
         with open(cores_file_path, 'w') as file:
             json.dump(current_iteration_cores, file, indent=4)
         
@@ -530,13 +520,16 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         
         # Salvataggio su file dell'analisi dei core di questa
         # iterazione.
-        cores_analysis_file_path = iteration_analysis_directory_path.joinpath('core_analysis.json')
+        cores_analysis_file_path = iteration_logs_directory_path.joinpath('core_info.json')
         with open(cores_analysis_file_path, 'w') as file:
-            json.dump(cores_analysis, file, indent=4)
+            json.dump(cores_info, file, indent=4)
 
-        print(f'[iter {iteration_index}] Iteration {iteration_index} finished.')
-        
         iteration_index += 1
 
+        if iteration_index < max_iteration_number:
+            print(f'[iter {iteration_index}] Iteration {iteration_index} finished.')
+        else:
+            print(f'[iter {iteration_index}] [STOP] Iteration maximum {iteration_index} reached.')
+
     total_end_time = time.perf_counter()
-    print(f'End total solving process. Time elapsed: {total_end_time - total_start_time} seconds')
+    print(f'End total solving process. Time elapsed: {total_end_time - total_start_time} seconds.')

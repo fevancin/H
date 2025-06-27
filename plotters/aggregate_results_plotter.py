@@ -262,7 +262,7 @@ def plot_results_values_by_group(groups_directory_path, plot_file_path):
             color_map[group_prefix] = colors[len(color_map) % len(colors)]
             ax.plot(xs, ys, color=color_map[group_prefix], alpha=0.75, label=group_prefix)
 
-    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+    plt.legend(bbox_to_anchor=(1.04, 1), loc='upper left')
 
     plt.title(f'Results values by iteration')
     plt.xlabel('Iteration')
@@ -322,7 +322,7 @@ def plot_results_values_by_instance(groups_directory_path, plot_file_path):
             color_map[instance_name] = colors[len(color_map) % len(colors)]
             ax.plot(xs, ys, color=color_map[instance_name], alpha=0.75, label=instance_name)
 
-    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+    plt.legend(bbox_to_anchor=(1.04, 1), loc='upper left')
 
     plt.title(f'Results values by iteration')
     plt.xlabel('Iteration')

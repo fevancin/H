@@ -1,7 +1,7 @@
 def custom_count(value, maxs):
-    """Passing a list of integers, this function returns the next value in the
+    '''Passing a list of integers, this function returns the next value in the
     counting sequence, treating each element as a digit. The maxs list give the
-    maximum value (exclusive) for each digit, after that there is a remainder."""
+    maximum value (exclusive) for each digit, after that there is a remainder.'''
     index = 0
     while index < len(value):
         value[index] += 1
@@ -13,10 +13,10 @@ def custom_count(value, maxs):
 
 
 def is_contained(small_day, big_day):
-    """Function that search a match between two set of [start-duration] intervals.
+    '''Function that search a match between two set of [start-duration] intervals.
     Each one of the first group must be contained in one of the second group without
     intersecting eachother. Some optimization are implemented in order to give
-    a better performance when is not necessary to solve the full problem."""
+    a better performance when is not necessary to solve the full problem.'''
 
     # trivial cases
     if len(small_day) == 0:
@@ -28,7 +28,7 @@ def is_contained(small_day, big_day):
     if len(small_day) == len(big_day):
         are_days_equal = True
         for operator, other_operator in zip(small_day.values(), big_day.values()):
-            if operator["start"] != other_operator["start"] or operator["duration"] != other_operator["duration"]:
+            if operator['start'] != other_operator['start'] or operator['duration'] != other_operator['duration']:
                 are_days_equal = False
                 break
         if are_days_equal:
@@ -42,7 +42,7 @@ def is_contained(small_day, big_day):
         for big_operator_name, big_operator in big_day.items():
 
             # add to the domain all big_operators that can contain the small one
-            if small_operator["start"] >= big_operator["start"] and small_operator["start"] + small_operator["duration"] <= big_operator["start"] + big_operator["duration"]:
+            if small_operator['start'] >= big_operator['start'] and small_operator['start'] + small_operator['duration'] <= big_operator['start'] + big_operator['duration']:
                 possible_choices[small_operator_name].append(big_operator_name)
         
         # if a domain is empty, no match is possible
@@ -60,7 +60,7 @@ def is_contained(small_day, big_day):
                 continue
 
             # add the couple if the two operator intersect
-            if small_operator["start"] <= other_small_operator["start"] and small_operator["start"] + small_operator["duration"] > other_small_operator["start"]:
+            if small_operator['start'] <= other_small_operator['start'] and small_operator['start'] + small_operator['duration'] > other_small_operator['start']:
                 incompatibility.append((small_operator_name, other_small_operator_name))
 
     # if there are no conflicts, every match is a good one

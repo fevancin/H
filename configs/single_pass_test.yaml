@@ -1,0 +1,54 @@
+# Modello che rappresenta il punto di partenza per la configurazione di ogni
+# risoluzione.
+base:
+  # Elenco di nomi dei soli gruppi da risolvere (inserisci nella lista 'all'
+  # per eseguire tutti i gruppi)
+  groups_to_do: []
+  groups_to_avoid: [] # Elenco dei gruppi di istanze da non risolvere
+  
+  # Tipologia di problema da risolvere ('monolithic', 'fat-master',
+  # 'slim-master', 'fat-subproblem' o 'slim-subproblem')
+  problem: 'fat-subproblem'
+  
+  # Se ogni controllo di correttezza termina la computazione anzichè scrivere
+  # solamente un errore a terminale
+  checks_throw_exceptions: true
+
+  solver_config:
+    solver: 'gurobi'
+    time_limit: 3600
+    max_memory: 16
+
+  additional_info:
+  - 'minimize_hospital_accesses'
+  - 'use_redundant_patient_cut' # Solo per il monolitico
+  - 'use_redundant_operator_cut' # Solo per il monolitico
+
+# Ogni elemento in questo oggetto corrisponde ad un differente processo di
+# risoluzione. Ciò che compare viene aggiunto o sovrascritto ogni volta a copie
+# della configurazione di base.
+groups:
+
+  monolithic:
+    groups_to_do: ['small_master_group']
+    problem: 'monolithic'
+
+
+
+  slim_master:
+    groups_to_do: ['small_master_group']
+    problem: 'slim-master'
+
+  fat_master:
+    groups_to_do: ['small_master_group']
+    problem: 'fat-master'
+  
+
+
+  slim_subproblem:
+    groups_to_do: ['small_subproblem_slim_group']
+    problem: 'slim-subproblem'
+    
+  fat_subproblem:
+    groups_to_do: ['small_subproblem_fat_group']
+    problem: 'fat-subproblem'

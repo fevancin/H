@@ -3,36 +3,36 @@ from pathlib import Path
 
 
 def get_max_possible_master_requests(master_instance):
-    """Funzione che calcola tutte le richieste che potrebbero essere effettuate
-    in ogni giorno. La funzione ritorna un dict[day, list[patient, service]]."""
+    '''Funzione che calcola tutte le richieste che potrebbero essere effettuate
+    in ogni giorno. La funzione ritorna un dict[day, list[patient, service]].'''
 
     # Dizionario che indicizza sui giorni
     max_requests = {}
 
     # Cicli che per ogni paziente, protocollo e servizio richiesto popola
     # 'max_requests'.
-    for paitient_name, patient in master_instance['patients'].items():
+    for patient_name, patient in master_instance['patients'].items():
         for service_name, windows in patient['requests'].items():
             for window in windows:
                 for day_index in range(window[0], window[1] + 1):
                     if day_index not in max_requests:
                         max_requests[day_index] = set()
-                    max_requests[day_index].add((paitient_name, service_name))
+                    max_requests[day_index].add((patient_name, service_name))
     
-    max_requests = {str(day_index): list(requests) for day_index, requests in max_requests.items()}
+    max_requests = {str(day_index): list({'patient': r[0], 'service': r[1]} for r in requests) for day_index, requests in max_requests.items()}
     
     return max_requests
 
 
 def remove_unfeasible_cores(master_instance, cores):
-    """Funzione che rimuove i core quando le loro componenti risultano
+    '''Funzione che rimuove i core quando le loro componenti risultano
     complessivamente non ammissibili nei suoi giorni. La non ammissibilità è
     calcolata sommando le durate dei servizi presenti nelle componenti, divise
     per le rispettive unità di cura, e verificando che questi totali siano non
     superiori alla durata totale degli operatori di quella unità di cura. Questo
     controllo è necessario solo nel caso si anonimizzino i servizi e quindi
     siano possibili richieste con durata >=. La funzione ritorna la lista dei
-    core ammissibili."""
+    core ammissibili.'''
 
     # Dizionario che contiene, per ogni giorno e unità di cura, il totale delle
     # durate degli operatori presenti.
@@ -93,8 +93,8 @@ def remove_unfeasible_cores(master_instance, cores):
 
 def expand_core_patients_services(cores, max_possible_master_requests, master_instance,
                                   expand_patients: bool, expand_services: bool, max_expansions_per_core: int):
-    """Funzione che ritorna la lista di core con nomi di pazienti e/o servizi
-    anonimizzati."""
+    '''Funzione che ritorna la lista di core con nomi di pazienti e/o servizi
+    anonimizzati.'''
 
     # Path utilizzati per i file di input/output di lavoro.
     asp_input_file_path = Path('asp_input.lp')
