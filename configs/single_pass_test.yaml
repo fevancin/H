@@ -29,12 +29,13 @@ base:
 # della configurazione di base.
 groups:
 
+  # Test sul modello monilitico
   monolithic:
     groups_to_do: ['small_master_group']
     problem: 'monolithic'
 
 
-
+  # Test su istanze del master
   slim_master:
     groups_to_do: ['small_master_group']
     problem: 'slim-master'
@@ -44,7 +45,7 @@ groups:
     problem: 'fat-master'
   
 
-
+  # Test su istanze del sottoproblema
   slim_subproblem:
     groups_to_do: ['small_subproblem_slim_group']
     problem: 'slim-subproblem'

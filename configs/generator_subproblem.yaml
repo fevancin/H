@@ -22,21 +22,6 @@ base:
 # o sovrascritto ogni volta a copie della configurazione di base
 groups:
 
-    small_subproblem_fat_group:
-        instance_number: 2
-        care_unit_number: 2
-        operator_number: 2
-        time_slots: 8
-        patient_number: 8
-    
-    small_subproblem_slim_group:
-        instance_number: 2
-        care_unit_number: 2
-        operator_number: 2
-        time_slots: 8
-        patient_number: 8
-        operator_pre_chosen: true
-
     sub_32pat:
         patient_number: 32
     sub_16pat:

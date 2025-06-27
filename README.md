@@ -26,18 +26,18 @@ Degli esempi di file di configurazione si possono trovare nella cartella `config
 
 ```bash
 # Generazione di istanze
-python generator.py -c configs\master_generator.yaml -o ..\master_instances
-python generator.py -c configs\subproblem_generator.yaml -o ..\subproblem_instances
+python generator.py -c configs/generator_master.yaml -o ../master_instances
+python generator.py -c configs/generator_subproblem.yaml -o ../subproblem_instances
 
 # Esecuzione dei test
-python run_single_pass_tests.py -c configs\test_single_pass.yaml -i ..\master_instances -o ..\master_single_pass_results
-python run_single_pass_tests.py -c configs\test_single_pass.yaml -i ..\subproblem_instances -o ..\subproblem_single_pass_results
+python run_single_pass_tests.py -c configs/single_pass_test.yaml -i ../master_instances -o ../master_single_pass_results
+python run_single_pass_tests.py -c configs/single_pass_test.yaml -i ../subproblem_instances -o ../subproblem_single_pass_results
 
-python run_iterative_tests.py -c configs\test_iterative.yaml -i ..\master_instances -o ..\master_iterative_results
+python run_iterative_tests.py -c configs/iterative_test.yaml -i ../master_instances -o ../master_iterative_results
 
 # Analisi dei risultati
-python analyzer.py -c configs\master_single_pass_analysis.yaml -r ..\master_single_pass_results -o ..\master_single_pass_analysis
-python analyzer.py -c configs\subproblem_single_pass_analysis.yaml -r ..\subproblem_single_pass_results -o ..\subproblem_single_pass_analysis
+python analyzer.py -c configs/analysis.yaml -r ../master_single_pass_results -o ../master_single_pass_analysis
+python analyzer.py -c configs/analysis.yaml -r ../subproblem_single_pass_results -o ../subproblem_single_pass_analysis
 
-python analyzer.py -c configs\iterative_analysis.yaml -r ..\master_iterative_results -o ..\master_iterative_analysis
+python analyzer.py -c configs/analysis.yaml -r ../master_iterative_results -o ../master_iterative_analysis
 ```

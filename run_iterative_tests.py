@@ -13,14 +13,14 @@ if __name__ != '__main__':
 
 # Argomenti da linea di comando
 parser = argparse.ArgumentParser(prog='Run iterative tests', description='Solve groups of master instances.')
+parser.add_argument('-c', '--config', type=Path, help='Solving configuration', required=True)
 parser.add_argument('-i', '--input', type=Path, help='Directory with instance groups.', required=True)
 parser.add_argument('-o', '--output', type=Path, help='Directory where outputting results.', required=True)
-parser.add_argument('-c', '--config', type=Path, help='Solving configuration', required=True)
 args = parser.parse_args()
 
+config_file_path = Path(args.config).resolve()
 input_directory_path = Path(args.input).resolve()
 output_directory_path = Path(args.output).resolve()
-config_file_path = Path(args.config).resolve()
 
 # Controlli sulla validità degli argomenti da linea di comando
 if not config_file_path.exists():
