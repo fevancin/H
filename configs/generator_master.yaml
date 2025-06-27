@@ -4,7 +4,7 @@
 # - {min, max}
 # - {min, max, mode}
 base:
-    instance_number: 10 # numero di istanze nel gruppo
+    instance_number: 4 # numero di istanze nel gruppo
     seed: 100 # seme per la generazione pseudocasuale
 
     day_number: 32 # numero di giorni
