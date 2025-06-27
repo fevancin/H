@@ -31,10 +31,6 @@ base:
 # o sovrascritto ogni volta a copie della configurazione di base.
 groups:
 
-    32pat_1cu_8op:
-        care_unit_number: 1
-        operator_number: 8
-        patient_number: 32
     32pat_2cu_4op:
         care_unit_number: 2
         operator_number: 4
@@ -48,10 +44,6 @@ groups:
         operator_number: 1
         patient_number: 32
     
-    64pat_1cu_8op:
-        care_unit_number: 1
-        operator_number: 8
-        patient_number: 64
     64pat_2cu_4op:
         care_unit_number: 2
         operator_number: 4

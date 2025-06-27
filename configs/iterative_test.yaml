@@ -91,21 +91,21 @@ groups:
 
   # Terso test: presenza dei vincoli di ottimalità
   generalist_no_exp_opt_constr:
-    groups_to_do: []
+    groups_to_do: ['all']
     groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
     core_type: 'generalist'
     additional_master_info:
     - 'use_optimality_constraints'
   
   basic_no_exp_opt_constr:
-    groups_to_do: []
+    groups_to_do: ['all']
     groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
     core_type: 'basic'
     additional_master_info:
     - 'use_optimality_constraints'
   
   reduced_no_exp_opt_constr:
-    groups_to_do: []
+    groups_to_do: ['all']
     groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
     core_type: 'reduced'
     additional_master_info:
