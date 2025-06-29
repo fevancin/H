@@ -40,12 +40,14 @@ def get_fat_subproblem_model(instance, additional_info):
 
     for p, patient in instance['patients'].items():
         for s in patient['requests']:
+            
             satisfy_index.add((p, s))
 
             duration = instance['services'][s]['duration']
             c = instance['services'][s]['care_unit']
 
             for o, operator in instance['day'][c].items():
+                
                 if operator['duration'] < duration:
                     continue
 
@@ -61,8 +63,10 @@ def get_fat_subproblem_model(instance, additional_info):
         # Itera tutte le coppie
         for i in range(request_number - 1):
             s1 = patient['requests'][i]
+            
             for j in range(i + 1, request_number):
                 s2 = patient['requests'][j]
+                
                 patient_overlap_index.add((p, s1, s2))
 
     for p, s, c, o in do_index:
@@ -89,11 +93,10 @@ def get_fat_subproblem_model(instance, additional_info):
         il servizio da un operatore dell'unità di cura corretta.'''
 
         service_duration = instance['services'][s]['duration']
-
         c = instance['services'][s]['care_unit']
-        max_operator_end = max(o['start'] + 1 + o['duration'] for o in instance['day'][c].values())
+        max_operator_end = max(o['start'] + o['duration'] for o in instance['day'][c].values())
         
-        return (0, max_operator_end - service_duration)
+        return (0, max_operator_end + 1 - service_duration)
 
     # VARIABILI ################################################################
 
@@ -181,15 +184,16 @@ def get_fat_subproblem_model(instance, additional_info):
 
     # La durata totale dei servizi assegnati ad un operatore non può superare la
     # durata di attività di quest'ultimo
-    @model.Constraint(model.operators)
-    def respect_operator_duration(model, c, o):
-        
-        tuples_affected = [(p, s) for p, s, cc, oo in model.do_index if cc == c and oo == o]
-        
-        if len(tuples_affected) == 0 or sum(instance['services'][s]['duration'] for _, s in tuples_affected) <= instance['day'][c][o]['duration']:
-            return pyo.Constraint.Skip
-        
-        return pyo.quicksum(model.do[p, s, c, o] * instance['services'][s]['duration'] for p, s in tuples_affected) <= instance['day'][c][o]['duration']
+    if 'use_redundant_operator_cut' in additional_info:
+        @model.Constraint(model.operators)
+        def respect_operator_duration(model, c, o):
+            
+            tuples_affected = [(p, s) for p, s, cc, oo in model.do_index if cc == c and oo == o]
+            
+            if len(tuples_affected) == 0 or sum(instance['services'][s]['duration'] for _, s in tuples_affected) <= instance['day'][c][o]['duration']:
+                return pyo.Constraint.Skip
+            
+            return pyo.quicksum(model.do[p, s, c, o] * instance['services'][s]['duration'] for p, s in tuples_affected) <= instance['day'][c][o]['duration']
 
     # FUNZIONE OBIETTIVO #######################################################
 

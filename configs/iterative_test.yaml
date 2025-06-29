@@ -34,11 +34,13 @@ base:
   max_expansions_per_core: 50
 
   master_config:
+    model: 'slim-master' # 'fat-master', 'slim-master'
     solver: 'gurobi'
     time_limit: 3600 # in secondi
     max_memory: 16 # in GB
 
   subproblem_config:
+    model: 'fat-subproblem' # 'fat-subproblem', 'slim-subproblem'
     solver: 'gurobi'
     time_limit: 3600 # in secondi
     max_memory: 16 # in GB
@@ -110,3 +112,11 @@ groups:
     core_type: 'reduced'
     additional_master_info:
     - 'use_optimality_constraints'
+
+# '32pat_4cu_2op', '64pat_4cu_2op', '128pat_4cu_2op'
+
+# '32pat_1cu_8op', '32pat_2cu_4op', '32pat_4cu_2op', '32pat_8cu_1op'
+# '64pat_1cu_8op', '64pat_2cu_4op', '64pat_4cu_2op', '64pat_8cu_1op'
+
+# '32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like'
+# '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like'

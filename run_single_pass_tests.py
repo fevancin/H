@@ -21,6 +21,8 @@ from milp_models.master_model import get_fat_master_model, get_results_from_fat_
 from milp_models.subproblem_model import get_fat_subproblem_model, get_results_from_fat_subproblem_model
 from milp_models.subproblem_model import get_slim_subproblem_model, get_results_from_slim_subproblem_model
 
+from milp_models.solve_instance import get_solver_info
+
 
 # Questo programma può essere chiamato solo dalla linea di comando
 if __name__ != '__main__':
@@ -59,7 +61,6 @@ with open(configs_file_path, 'r') as file:
     configs = yaml.load(file, yaml.Loader)
 
 total_instance_number = 0
-total_group_number = 0
 
 print('---')
 
@@ -79,7 +80,7 @@ for config_name, config_changes in configs['groups'].items():
     
     group_number = 0
     group_names = []
-    total_instance_number = 0
+    total_config_instance_number = 0
 
     for group_input_directory_path in groups_input_directory_path.iterdir():
         if not group_input_directory_path.is_dir():
@@ -100,18 +101,20 @@ for config_name, config_changes in configs['groups'].items():
         for input_instance_file_path in group_input_directory_path.iterdir():
             if input_instance_file_path.suffix != '.json':
                 continue
-            total_instance_number += 1
+            total_config_instance_number += 1
     
     if group_number == 0:
         print(f'WARNING: the configuration \'{config_name}\' does not have any valid instance groups.')
     else:
         group_names_string = ', '.join(group_names)
         print(f'The configuration \'{config_name}\' will be applied to {group_number} instance groups: [{group_names_string}].')
-        print(f'{total_instance_number} total instance number will be solved by configuration \'{config_name}\'.')
+        print(f'{total_config_instance_number} total instance number will be solved by configuration \'{config_name}\'.')
+
+    total_instance_number += total_config_instance_number
 
 print('---')
 
-total_instance_number = 0
+instance_index = 0
 total_group_number = 0
 
 # Esecuzione di ogni tipologia di risoluzione presente nella configurazione
@@ -121,6 +124,8 @@ for config_name, config_changes in configs['groups'].items():
     config = copy.deepcopy(configs['base'])
     for config_changes_key, config_changes_value in config_changes.items():
         if type(config_changes_value) is list:
+            if config_changes_value not in config:
+                config[config_changes_key] = []
             config[config_changes_key].extend(config_changes_value)
         else:
             config[config_changes_key] = config_changes_value
@@ -157,19 +162,10 @@ for config_name, config_changes in configs['groups'].items():
         config_file_path = group_directory_path.joinpath('solver_config.yaml')
         with open(config_file_path, 'w') as file:
             yaml.dump(config, file, default_flow_style=False, sort_keys=False)
-
-        # Conta del numero di istanze nel gruppo
-        instance_number = 0
-        for input_instance_file_path in group_input_directory_path.iterdir():
-            if input_instance_file_path.suffix != '.json':
-                continue
-            instance_number += 1
         
-        total_instance_number += instance_number
         total_group_number += 1
 
         # Risoluzione delle istanze
-        instance_index = 0
         for input_instance_file_path in group_input_directory_path.iterdir():
             if input_instance_file_path.suffix != '.json':
                 continue
@@ -181,9 +177,9 @@ for config_name, config_changes in configs['groups'].items():
             is_master_instance = 'days' in instance
 
             # Controllo sulla coerenza dell'istanza con il problema da risolvere
-            if config['problem'] in ['fat-subproblem', 'slim-subproblem'] and is_master_instance:
+            if config['model'] in ['fat-subproblem', 'slim-subproblem'] and is_master_instance:
                 raise ValueError(f'\'{input_instance_file_path}\' is not a subproblem instance')
-            if config['problem'] not in ['fat-subproblem', 'slim-subproblem'] and not is_master_instance:
+            if config['model'] not in ['fat-subproblem', 'slim-subproblem'] and not is_master_instance:
                 raise ValueError(f'\'{input_instance_file_path}\' is not a master instance')
 
             # Controlli sulla correttezza dell'input
@@ -207,22 +203,23 @@ for config_name, config_changes in configs['groups'].items():
                 file.write(jsbeautifier.beautify(json.dumps(instance)))
             
             instance_index += 1
-            print(f'Solving instance \'{instance_file_path.stem}\' of group \'{group_input_directory_path.name}\' with process \'{config_name}\' ({instance_index}/{instance_number})')
+
+            print(f'Solving instance \'{instance_file_path.stem}\' of group \'{group_input_directory_path.name}\' with config \'{config_name}\' ({instance_index}/{total_instance_number})')
             total_start_time = time.perf_counter()
 
             print(f'Model creation... ', end='')
             model_creation_start_time = time.perf_counter()
 
             # Creazione del modello
-            if config['problem'] == 'monolithic':
+            if config['model'] == 'monolithic':
                 model = get_monolithic_model(instance, config['additional_info'])
-            elif config['problem'] == 'slim-master':
+            elif config['model'] == 'slim-master':
                 model = get_slim_master_model(instance, config['additional_info'])
-            elif config['problem'] == 'fat-master':
+            elif config['model'] == 'fat-master':
                 model = get_fat_master_model(instance, config['additional_info'])
-            elif config['problem'] == 'fat-subproblem':
+            elif config['model'] == 'fat-subproblem':
                 model = get_fat_subproblem_model(instance, config['additional_info'])
-            elif config['problem'] == 'slim-subproblem':
+            elif config['model'] == 'slim-subproblem':
                 model = get_slim_subproblem_model(instance, config['additional_info'])
 
             model_creation_end_time = time.perf_counter()
@@ -251,63 +248,44 @@ for config_name, config_changes in configs['groups'].items():
 
             # Ottenimento dei dati del solver
             model.solutions.store_to(model_results)
-            solution = model_results.solution[0]
-            lower_bound = float(model_results['problem'][0]['Lower bound'])
-            upper_bound = float(model_results['problem'][0]['Upper bound'])
-            gap = float(solution['gap'])
-            if gap <= 1e-5 and lower_bound != upper_bound:
-                gap = (upper_bound - lower_bound) / upper_bound
-            value = float(solution['objective']['objective_function']['Value'])
-
-            info = {'info': {
-                'timestamp': datetime.now().strftime('%a_%d_%m_%Y_%H_%M_%S'),
-                'model_creation_time': model_creation_end_time - model_creation_start_time,
-                'model_solving_time': solving_end_time - solving_start_time,
-                'solver_internal_time': float(model_results.solver.time),
-                'status': str(model_results.solver.status),
-                'termination_condition': str(model_results.solver.termination_condition),
-                'lower_bound': lower_bound,
-                'upper_bound': upper_bound if upper_bound <= 1e9 else 'infinity',
-                'gap': gap,
-                'objective_function_value': value
-            }}
+            solver_info = get_solver_info(model_results, config['model'], log_file_path)
 
             # Salvataggio dei dati del solver su file
             info_file_path = logs_directory_path.joinpath(f'{instance_file_path.stem}_info.json')
             with open(info_file_path, 'w') as file:
-                file.write(jsbeautifier.beautify(json.dumps(info)))
+                json.dump(solver_info, file, indent=4)
 
-            if config['problem'] == 'monolithic':
+            if config['model'] == 'monolithic':
                 results = get_results_from_monolithic_model(model)
-            elif config['problem'] == 'slim-master':
+            elif config['model'] == 'slim-master':
                 results = get_results_from_slim_master_model(model)
-            elif config['problem'] == 'fat-master':
+            elif config['model'] == 'fat-master':
                 results = get_results_from_fat_master_model(model)
-            elif config['problem'] == 'fat-subproblem':
+            elif config['model'] == 'fat-subproblem':
                 results = get_results_from_fat_subproblem_model(model)
-            elif config['problem'] == 'slim-subproblem':
+            elif config['model'] == 'slim-subproblem':
                 results = get_results_from_slim_subproblem_model(model)
 
             # Salvataggio dei risultati su file
             results_file_path = results_directory_path.joinpath(f'{instance_file_path.stem}_results.json')
             with open(results_file_path, 'w') as file:
-                file.write(jsbeautifier.beautify(json.dumps(results)))
+                json.dump(results, file, indent=4)
             
             # Controllo sulla correttezza dei risultati
             if config['checks_throw_exceptions']:
-                if config['problem'] == 'monolithic':
+                if config['model'] == 'monolithic':
                     check_final_results(instance, results)
-                elif config['problem'] in ['slim-master', 'fat-master']:
+                elif config['model'] in ['slim-master', 'fat-master']:
                     check_master_results(instance, results)
-                elif config['problem'] in ['slim-subproblem', 'fat-subproblem']:
+                elif config['model'] in ['slim-subproblem', 'fat-subproblem']:
                     check_subproblem_results(instance, results)
             else:
                 try:
-                    if config['problem'] == 'monolithic':
+                    if config['model'] == 'monolithic':
                         check_final_results(instance, results)
-                    elif config['problem'] in ['slim-master', 'fat-master']:
+                    elif config['model'] in ['slim-master', 'fat-master']:
                         check_master_results(instance, results)
-                    elif config['problem'] in ['slim-subproblem', 'fat-subproblem']:
+                    elif config['model'] in ['slim-subproblem', 'fat-subproblem']:
                         check_subproblem_results(instance, results)
                 except Exception as exception:
                     print(exception)

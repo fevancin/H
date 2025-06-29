@@ -1,4 +1,3 @@
-from datetime import datetime
 from pathlib import Path
 import json
 import time
@@ -12,8 +11,10 @@ from checkers.subproblem_instance_checker import check_subproblem_instance
 from checkers.subproblem_results_checker import check_subproblem_results
 from checkers.final_results_checker import check_final_results
 
+from milp_models.master_model import get_fat_master_model, get_results_from_fat_master_model
 from milp_models.master_model import get_slim_master_model, get_results_from_slim_master_model
 from milp_models.subproblem_model import get_fat_subproblem_model, get_results_from_fat_subproblem_model
+from milp_models.subproblem_model import get_slim_subproblem_model, get_results_from_slim_subproblem_model
 from milp_models.master_model import add_optimality_constraints
 
 from cores.compute_cores import compute_generalist_cores, compute_basic_cores, compute_reduced_cores, aggregate_and_remove_duplicate_cores
@@ -120,6 +121,74 @@ def compose_final_results(master_instance, master_results, all_subproblem_result
     return final_results
 
 
+def get_solver_info(model_results, model_name, log_file_path):
+
+    solution = model_results.solution[0]
+    lower_bound = float(model_results['problem'][0]['Lower bound'])
+    upper_bound = float(model_results['problem'][0]['Upper bound'])
+    gap = float(solution['gap'])
+    if gap <= 1e-5 and lower_bound != upper_bound:
+        gap = (upper_bound - lower_bound) / upper_bound
+    # objective_value = float(solution['objective']['objective_function']['Value'])
+
+    solver_info = {}
+
+    # Parsing del file di log
+    with open(log_file_path, 'r') as file:
+        last_h_line = None
+        for line in file.readlines():
+            if line.startswith('Explored'):
+                tokens = line.split()
+                solver_info['explored_nodes'] = int(tokens[1])
+            elif line.startswith('Root relaxation'):
+                    tokens = line.split()
+                    solver_info['root_relax'] = float(tokens[3][:-1])
+            elif line.startswith('H'):
+                last_h_line = line
+            # elif line.startswith('Optimize a model with'):
+            #     tokens = line.split()
+            #     solver_info['initial_constraints'] = int(tokens[4])
+            #     solver_info['initial_variables'] = int(tokens[6])
+            # elif line.startswith('Presolved:'):
+            #     tokens = line.split()
+            #     solver_info['presolved_constraints'] = int(tokens[1])
+            #     solver_info['presolved_variables'] = int(tokens[3])
+        if last_h_line is not None:
+            tokens = last_h_line.split('%')
+            solver_info['best_sol_time'] = float(tokens[1].split()[-1][:-1])
+
+    # solver_info['timestamp'] = datetime.now().strftime('%a_%d_%m_%Y_%H_%M_%S'),
+    # solver_info['termination_condition'] = str(model_results.solver.termination_condition),
+    # solver_info['objective_function_value'] = objective_value,
+    # solver_info['status'] = str(model_results.solver.status),
+    solver_info['status'] = str(model_results.solver.termination_condition),
+    solver_info['time'] = float(model_results.solver.time),
+    solver_info['gap_ratio'] = gap,
+    solver_info['lower_bound'] = lower_bound,
+    solver_info['upper_bound'] = upper_bound if upper_bound <= 1e9 else 'infinity',
+    solver_info['gap'] = upper_bound - lower_bound,
+    solver_info['model'] = model_name
+
+    if type(solver_info['time']) is not float:
+        solver_info['time'] = float(solver_info['time'][0])
+    if type(solver_info['gap_ratio']) is not float:
+        solver_info['gap_ratio'] = float(solver_info['gap_ratio'][0])
+    if type(solver_info['lower_bound']) is not float:
+        solver_info['lower_bound'] = float(solver_info['lower_bound'][0])
+    if type(solver_info['upper_bound']) is not float:
+        solver_info['upper_bound'] = float(solver_info['upper_bound'][0])
+    if type(solver_info['gap']) is not float:
+        solver_info['gap'] = float(solver_info['gap'][0])
+    if type(solver_info['status']) is not str:
+        solver_info['status'] = str(solver_info['status'][0])
+    if type(solver_info['root_relax']) is list:
+        solver_info['root_relax'] = float(solver_info['root_relax'][0])
+    
+    solver_info['best_obj_ratio_root_relax'] = solver_info['lower_bound'] / solver_info['root_relax']
+
+    return solver_info 
+
+
 def solve_instance(master_instance, output_directory_path: Path, config: dict):
 
     if config['checks_throw_exceptions']:
@@ -167,7 +236,10 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
     print(f'Master model creation... ', end='')
     master_model_creation_start_time = time.perf_counter()
 
-    master_model = get_slim_master_model(master_instance, config['additional_master_info'])
+    if config['master_config']['model'] == 'fat-master':
+        master_model = get_fat_master_model(master_instance, config['additional_master_info'])
+    elif config['master_config']['model'] == 'slim-master':
+        master_model = get_slim_master_model(master_instance, config['additional_master_info'])
 
     add_cores_constraint_class_to_master_model(master_model)
 
@@ -213,33 +285,18 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         master_solving_end_time = time.perf_counter()
         print(f'ended ({master_solving_end_time - master_solving_start_time}s).')
 
+        # Ottenimento dei dati del solver
         master_model.solutions.store_to(master_model_results)
-        solution = master_model_results.solution[0]
-        lower_bound = float(master_model_results['problem'][0]['Lower bound'])
-        upper_bound = float(master_model_results['problem'][0]['Upper bound'])
-        gap = float(solution['gap'])
-        if gap <= 1e-5 and lower_bound != upper_bound:
-            gap = (upper_bound - lower_bound) / upper_bound
-        value = float(solution['objective']['objective_function']['Value'])
-
-        master_info = {'info': {
-            'timestamp': datetime.now().strftime('%a_%d_%m_%Y_%H_%M_%S'),
-            'model_creation_time': master_model_creation_end_time - master_model_creation_start_time,
-            'model_solving_time': master_solving_end_time - master_solving_start_time,
-            'solver_internal_time': float(master_model_results.solver.time),
-            'status': str(master_model_results.solver.status),
-            'termination_condition': str(master_model_results.solver.termination_condition),
-            'lower_bound': lower_bound,
-            'upper_bound': upper_bound if upper_bound <= 1e9 else 'infinity',
-            'gap': gap,
-            'objective_function_value': value
-        }}
+        master_info = get_solver_info(master_model_results, config['master_config']['model'], master_log_file_path)
 
         master_info_file_path = iteration_logs_directory_path.joinpath(f'master_info.json')
         with open(master_info_file_path, 'w') as file:
             json.dump(master_info, file, indent=4)
 
-        master_results = get_results_from_slim_master_model(master_model)
+        if config['master_config']['model'] == 'fat-master':
+            master_results = get_results_from_fat_master_model(master_model)
+        elif config['master_config']['model'] == 'slim-master':
+            master_results = get_results_from_slim_master_model(master_model)
 
         master_results_file_path = iteration_results_directory_path.joinpath('master_results.json')
         with open(master_results_file_path, 'w') as file:
@@ -274,7 +331,10 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             print(f'[iter {iteration_index}] Model creation for day \'{day_name}\'... ', end='')
             subproblem_model_creation_start_time = time.perf_counter()
 
-            subproblem_model = get_fat_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
+            if config['subproblem_config']['model'] == 'fat-subproblem':
+                subproblem_model = get_fat_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
+            elif config['subproblem_config']['model'] == 'slim-subproblem':
+                subproblem_model = get_slim_subproblem_model(subproblem_instance, config['additional_subproblem_info'])
 
             subproblem_model_creation_end_time = time.perf_counter()
             print(f'ended ({round(subproblem_model_creation_end_time - subproblem_model_creation_start_time, 4)}s). ', end='')
@@ -299,33 +359,18 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             subproblem_solving_end_time = time.perf_counter()
             print(f'ended ({round(subproblem_solving_end_time - subproblem_solving_start_time, 4)}s).')
 
+            # Ottenimento dei dati del solver
             subproblem_model.solutions.store_to(subproblem_model_results)
-            solution = subproblem_model_results.solution[0]
-            lower_bound = float(subproblem_model_results['problem'][0]['Lower bound'])
-            upper_bound = float(subproblem_model_results['problem'][0]['Upper bound'])
-            gap = float(solution['gap'])
-            if gap <= 1e-5 and lower_bound != upper_bound:
-                gap = (upper_bound - lower_bound) / upper_bound
-            value = float(solution['objective']['objective_function']['Value'])
-
-            subproblem_info = {'info': {
-                'timestamp': datetime.now().strftime('%a_%d_%m_%Y_%H_%M_%S'),
-                'model_creation_time': subproblem_model_creation_end_time - subproblem_model_creation_start_time,
-                'model_solving_time': subproblem_solving_end_time - subproblem_solving_start_time,
-                'solver_internal_time': float(subproblem_model_results.solver.time),
-                'status': str(subproblem_model_results.solver.status),
-                'termination_condition': str(subproblem_model_results.solver.termination_condition),
-                'lower_bound': lower_bound,
-                'upper_bound': upper_bound if upper_bound <= 1e9 else 'infinity',
-                'gap': gap,
-                'objective_function_value': value
-            }}
+            subproblem_info = get_solver_info(subproblem_model_results, config['subproblem_config']['model'], subproblem_log_file_path)
 
             subproblem_info_file_path = iteration_logs_directory_path.joinpath(f'subproblem_info_day_{day_name}.json')
             with open(subproblem_info_file_path, 'w') as file:
                 json.dump(subproblem_info, file, indent=4)
 
-            subproblem_results = get_results_from_fat_subproblem_model(subproblem_model)
+            if config['subproblem_config']['model'] == 'fat-subproblem':
+                subproblem_results = get_results_from_fat_subproblem_model(subproblem_model)
+            elif config['subproblem_config']['model'] == 'slim-subproblem':
+                subproblem_results = get_results_from_slim_subproblem_model(subproblem_model)
 
             subproblem_results_file_path = iteration_results_directory_path.joinpath(f'subproblem_day_{day_name}_results.json')
             with open(subproblem_results_file_path, 'w') as file:

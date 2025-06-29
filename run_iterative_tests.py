@@ -62,6 +62,14 @@ for config_name, config_changes in configs['groups'].items():
         else:
             config[config_changes_key] = config_changes_value
     
+    # Controllo sulla validita fat/slim
+    if config['master_model']['model'] in ['fat-master'] and config['subproblem_model']['model'] not in ['slim-subproblem']:
+        print(f'WARNING: in \'{config_name}\' the master is fat, the subproblem is not slim. Ignoring this configuration.')
+        continue
+    if config['master_model']['model'] in ['slim-master'] and config['subproblem_model']['model'] not in ['fat-subproblem']:
+        print(f'WARNING: in \'{config_name}\' the master is slim, the subproblem is not fat. Ignoring this configuration.')
+        continue
+
     group_number = 0
     group_names = []
     total_group_instance_number = 0
@@ -110,6 +118,12 @@ for config_name, config_changes in configs['groups'].items():
             config[config_changes_key].extend(config_changes_value)
         else:
             config[config_changes_key] = config_changes_value
+    
+    # Controllo sulla validita fat/slim
+    if config['master_model']['model'] in ['fat-master'] and config['subproblem_model']['model'] not in ['slim-subproblem']:
+        continue
+    if config['master_model']['model'] in ['slim-master'] and config['subproblem_model']['model'] not in ['fat-subproblem']:
+        continue
 
     # Risolvi i gruppi di istanze
     for group_directory_path in input_directory_path.iterdir():

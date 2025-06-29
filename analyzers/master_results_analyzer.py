@@ -1,1 +1,0 @@
-from analyzers.tools import analyze_master_results

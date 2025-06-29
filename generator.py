@@ -361,12 +361,14 @@ for group_name, group_changes in config['groups'].items():
     for group_change_key, group_change_value in group_changes.items():
         group_config[group_change_key] = group_change_value
     
-    # Salva uan copia della configurazione corrente
+    if 'seed' not in group_config:
+        group_config['seed'] = random.randint(1, 1000)
+    random.seed(get_config_value(group_config['seed']))
+
+    # Salva una copia della configurazione corrente
     group_config_file_path = group_directory_path.joinpath('config.yaml')
     with open(group_config_file_path, 'w') as file:
         json.dump(group_config, file, indent=4)
-    
-    random.seed(get_config_value(group_config['seed']))
     
     instance_number = get_int_config_value(group_config['instance_number'])
     total_instance_number += instance_number

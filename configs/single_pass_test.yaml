@@ -6,23 +6,25 @@ base:
   groups_to_do: []
   groups_to_avoid: [] # Elenco dei gruppi di istanze da non risolvere
   
-  # Tipologia di problema da risolvere ('monolithic', 'fat-master',
-  # 'slim-master', 'fat-subproblem' o 'slim-subproblem')
-  problem: 'fat-subproblem'
   
   # Se ogni controllo di correttezza termina la computazione anzichè scrivere
   # solamente un errore a terminale
   checks_throw_exceptions: true
 
+  # Tipologia di modello da risolvere ('monolithic', 'fat-master',
+  # 'slim-master', 'fat-subproblem' o 'slim-subproblem'). Le versioni 'fat'
+  # hanno al loro interno la'assegnazione dell'operatore
+  model: 'fat-subproblem'
+  
   solver_config:
     solver: 'gurobi'
-    time_limit: 3600
+    time_limit: 600
     max_memory: 16
 
-  additional_info:
-  - 'minimize_hospital_accesses'
-  - 'use_redundant_patient_cut' # Solo per il monolitico
-  - 'use_redundant_operator_cut' # Solo per il monolitico
+  # additional_info:
+  # - 'minimize_hospital_accesses' # Solo per master e monolitico
+  # - 'use_redundant_patient_cut' # Solo per il monolitico
+  # - 'use_redundant_operator_cut' # Solo per il monolitico e sottoproblema
 
 # Ogni elemento in questo oggetto corrisponde ad un differente processo di
 # risoluzione. Ciò che compare viene aggiunto o sovrascritto ogni volta a copie
@@ -30,26 +32,32 @@ base:
 groups:
 
   # Test sul modello monilitico
-  monolithic:
-    groups_to_do: ['small_master_group']
-    problem: 'monolithic'
+  # monolithic:
+  #   groups_to_do: ['small_master_group']
+  #   model: 'monolithic'
 
 
   # Test su istanze del master
-  slim_master:
-    groups_to_do: ['small_master_group']
-    problem: 'slim-master'
+  # slim_master:
+  #   groups_to_do: ['small_master_group']
+  #   model: 'slim-master'
 
-  fat_master:
-    groups_to_do: ['small_master_group']
-    problem: 'fat-master'
+  # fat_master:
+  #   groups_to_do: ['small_master_group']
+  #   model: 'fat-master'
   
 
   # Test su istanze del sottoproblema
-  slim_subproblem:
-    groups_to_do: ['small_subproblem_slim_group']
-    problem: 'slim-subproblem'
+  # slim_subproblem:
+  #   groups_to_do: ['small_subproblem_slim_group']
+  #   model: 'slim-subproblem'
     
-  fat_subproblem:
-    groups_to_do: ['small_subproblem_fat_group']
-    problem: 'fat-subproblem'
+  general_precedence:
+    groups_to_do: ['all']
+    model: 'fat-subproblem'
+  
+  general_precedence-chain:
+    groups_to_do: ['all']
+    model: 'fat-subproblem'
+    additional_info:
+    - 'use_redundant_operator_cut'
