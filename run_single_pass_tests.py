@@ -74,6 +74,8 @@ for config_name, config_changes in configs['groups'].items():
     config = copy.deepcopy(configs['base'])
     for config_changes_key, config_changes_value in config_changes.items():
         if type(config_changes_value) is list:
+            if config_changes_key not in config:
+                config[config_changes_key] = []
             config[config_changes_key].extend(config_changes_value)
         else:
             config[config_changes_key] = config_changes_value
@@ -124,7 +126,7 @@ for config_name, config_changes in configs['groups'].items():
     config = copy.deepcopy(configs['base'])
     for config_changes_key, config_changes_value in config_changes.items():
         if type(config_changes_value) is list:
-            if config_changes_value not in config:
+            if config_changes_key not in config:
                 config[config_changes_key] = []
             config[config_changes_key].extend(config_changes_value)
         else:
