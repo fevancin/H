@@ -33,16 +33,20 @@ base:
   # Numero massimo di core che possono essere creati a partire da uno di essi
   max_expansions_per_core: 50
 
+  # Se utilizzare la ricerca di permutazioni di soluzioni del sottoproblema per
+  # raggiungere il valore ottimista del master
+  use_solution_permutation: false
+
   master_config:
     model: 'slim-master' # 'fat-master', 'slim-master'
     solver: 'gurobi'
-    time_limit: 3600 # in secondi
+    time_limit: 1200 # in secondi
     max_memory: 16 # in GB
 
   subproblem_config:
     model: 'fat-subproblem' # 'fat-subproblem', 'slim-subproblem'
     solver: 'gurobi'
-    time_limit: 3600 # in secondi
+    time_limit: 600 # in secondi
     max_memory: 16 # in GB
 
   additional_master_info:
@@ -50,73 +54,97 @@ base:
   # - 'use_bin_packing' # inutile nell'implementazione attuale...
 
   additional_subproblem_info:
-  - 'none'
+  - 'use_redundant_operator_cut'
 
 # Ogni elemento in questo oggetto corrisponde ad un differente processo di
 # risoluzione. Ciò che compare viene aggiunto o sovrascritto ogni volta a copie
 # della configurazione di base.
 groups:
 
-  # Primo test: tipo di core
+  # Test sul tipo di core con permutazione delle soluzioni
   generalist_no_exp:
-    groups_to_do: ['all']
-    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+    core_type: 'generalist'
+    use_solution_permutation: true
+  
+  basic_no_exp:
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+    core_type: 'basic'
+    use_solution_permutation: true
+  
+  reduced_no_exp:
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+    core_type: 'reduced'
+    use_solution_permutation: true
+  
+
+  # Test sul tipo di espansione con permutazione delle soluzioni
+  reduced_with_exp_ps:
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+    expand_core_patients: true
+    expand_core_services: true
+    use_solution_permutation: true
+  
+  reduced_with_exp_psd:
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+    expand_core_days: true
+    expand_core_patients: true
+    expand_core_services: true
+    use_solution_permutation: true
+
+
+  # Test sul tipo di core senza permutazione delle soluzioni
+  generalist_no_exp:
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
     core_type: 'generalist'
   
   basic_no_exp:
-    groups_to_do: ['all']
-    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
     core_type: 'basic'
   
   reduced_no_exp:
-    groups_to_do: ['all']
-    groups_to_avoid: []
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
     core_type: 'reduced'
-
-
-  # Secondo test: tipo di espansione
+  
+  
+  # Test sul tipo di espansione senza permutazione delle soluzioni
   reduced_with_exp_ps:
-    groups_to_do: ['all']
-    groups_to_avoid: []
-    core_type: 'reduced'
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
     expand_core_patients: true
     expand_core_services: true
   
   reduced_with_exp_psd:
-    groups_to_do: ['all']
-    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
-    core_type: 'reduced'
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
     expand_core_days: true
     expand_core_patients: true
     expand_core_services: true
   
 
-  # Terso test: presenza dei vincoli di ottimalità
+  # Test sulla presenza dei vincoli di ottimalità
   generalist_no_exp_opt_constr:
-    groups_to_do: ['all']
-    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
+    groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
     core_type: 'generalist'
     additional_master_info:
     - 'use_optimality_constraints'
   
   basic_no_exp_opt_constr:
-    groups_to_do: ['all']
-    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
+    groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
     core_type: 'basic'
     additional_master_info:
     - 'use_optimality_constraints'
   
   reduced_no_exp_opt_constr:
-    groups_to_do: ['all']
-    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like', '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
+    groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
     core_type: 'reduced'
     additional_master_info:
     - 'use_optimality_constraints'
 
-# '32pat_4cu_2op', '64pat_4cu_2op', '128pat_4cu_2op'
+  # small_solving:
+  #   groups_to_do: ['all']
+  #   core_type: 'generalist'
 
-# '32pat_1cu_8op', '32pat_2cu_4op', '32pat_4cu_2op', '32pat_8cu_1op'
-# '64pat_1cu_8op', '64pat_2cu_4op', '64pat_4cu_2op', '64pat_8cu_1op'
-
-# '32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like'
+# '128pat_4cu_2op',
+# '32pat_1cu_8op', '32pat_2cu_4op', '32pat_4cu_2op', '32pat_8cu_1op',
+# '64pat_1cu_8op', '64pat_2cu_4op', '64pat_4cu_2op', '64pat_8cu_1op',
+# '32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like',
 # '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like'

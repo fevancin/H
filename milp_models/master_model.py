@@ -564,6 +564,7 @@ def get_fat_master_model(instance, additional_info: list[str]):
     
     return model
 
+
 def get_results_from_fat_master_model(model):
     '''Funzione che ritorna i risultati (inseriti e rigettati) contenuti nel
     modello master risolto.'''

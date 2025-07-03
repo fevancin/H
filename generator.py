@@ -189,18 +189,10 @@ def generate_master_instance(config) -> dict:
         patient_name = random.choice(patient_names)
         patient_requests = patients[patient_name]['requests']
 
-        # Copia di una finestra delle richieste già inserite con probabilità
-        # uguale a 'requests_likeness_percentage' 
-        if len(patient_requests) > 0 and random.random() < requests_likeness_percentage:
-            other_service_name = random.choice(list(patient_requests.keys()))
-            window = random.choice(patient_requests[other_service_name])
-
-        # Generazione di una nuova finestra con probabilità
-        # 1.0 - 'requests_likeness_percentage'
-        else:
-            window_size = random.randint(1, request_window_max_size)
-            start_day = random.randint(0, day_number - window_size)
-            window = (start_day, start_day + window_size - 1)
+        # Generazione di una nuova finestra
+        window_size = random.randint(1, request_window_max_size)
+        start_day = random.randint(0, day_number - window_size)
+        window = (start_day, start_day + window_size - 1)
 
         # Inserimento della finestra
         if service_name not in patient_requests:
@@ -213,6 +205,29 @@ def generate_master_instance(config) -> dict:
 
     # Eliminazione dei pazienti senza nessuna richiesta
     patients = dict(filter(lambda p: len(p[1]['requests']) > 0, patients.items()))
+
+    # Copia di una finestra delle richieste già inserite con probabilità
+    # uguale a 'requests_likeness_percentage'
+    total_window_number = sum(len(requests) for patient in patients.values() for requests in patient['requests'].values())
+    number_of_windows_to_copy = int(total_window_number * requests_likeness_percentage)
+    for _ in range(number_of_windows_to_copy):
+        
+        # Selezione casuale di un paziente
+        patient_name = random.choice(list(patients.keys()))
+        patient_requests = patients[patient_name]['requests']
+
+        if len(patient_requests) < 2:
+            continue
+
+        # Selezione casuale di due servizi del paziente scelto
+        service_names = random.sample(list(patient_requests.keys()), k=2)
+        
+        # Selezione casuale di due finestre
+        window_to_copy = random.choice(patient_requests[service_names[0]])
+        window_to_overwrite_index = random.randint(0, len(patient_requests[service_names[1]]) - 1)
+
+        # La seconda finestra viene sovrascritta da una copia della prima
+        patient_requests[service_names[1]][window_to_overwrite_index] = window_to_copy
 
     # Ordina le richieste
     for patient in patients.values():

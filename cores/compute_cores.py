@@ -1,6 +1,18 @@
 import pyomo.environ as pyo
 
 
+def get_core_hash(core) -> str:
+    '''Funzione che ritorna un identificativo del core per un primo confronto di
+    disuguaglianza più efficiente.'''
+
+    component_number = len(core['components'])
+    patient_number = len(set(c['patient'] for c in core['components']))
+    day_number = len(core['days'])
+    first_day = 'x' if len(core['days']) == 0 else str(core['days'][0])
+
+    return f'{component_number}cmp_{patient_number}pat_{day_number}day_{first_day}'
+
+
 def compute_generalist_cores(all_subproblem_results):
     '''Questa funzione calcola la lista dei core generati a partire da ciascun
     giorno contenente qualcosa di non schedulato. Tutte le richieste di quel

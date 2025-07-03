@@ -16,6 +16,7 @@ from milp_models.master_model import get_slim_master_model, get_results_from_sli
 from milp_models.subproblem_model import get_fat_subproblem_model, get_results_from_fat_subproblem_model
 from milp_models.subproblem_model import get_slim_subproblem_model, get_results_from_slim_subproblem_model
 from milp_models.master_model import add_optimality_constraints
+from milp_models.sol_perm_model import get_sol_perm_model, get_results_from_sol_perm_model, get_fixed_final_results
 
 from cores.compute_cores import compute_generalist_cores, compute_basic_cores, compute_reduced_cores, aggregate_and_remove_duplicate_cores
 from cores.compute_cores import add_cores_constraint_class_to_master_model, add_cores_constraints_to_master_model
@@ -99,7 +100,7 @@ def compose_final_results(master_instance, master_results, all_subproblem_result
             for window in master_instance['patients'][patient_name]['requests'][service_name]:
                 if window[0] <= day_index and window[1] >= day_index:
                     windows_containing_rejected_request.append([window[0], window[1]])
-                        
+
             for window in windows_containing_rejected_request:
                 final_results['rejected'].append({
                     'patient': patient_name,
@@ -129,7 +130,7 @@ def get_solver_info(model_results, model_name, log_file_path):
     gap = float(solution['gap'])
     if gap <= 1e-5 and lower_bound != upper_bound:
         gap = (upper_bound - lower_bound) / upper_bound
-    # objective_value = float(solution['objective']['objective_function']['Value'])
+    objective_value = float(solution['objective']['objective_function']['Value'])
 
     solver_info = {}
 
@@ -141,26 +142,27 @@ def get_solver_info(model_results, model_name, log_file_path):
                 tokens = line.split()
                 solver_info['explored_nodes'] = int(tokens[1])
             elif line.startswith('Root relaxation'):
-                    tokens = line.split()
+                tokens = line.split()
+                if tokens[2].startswith('cutoff'):
+                    solver_info['root_relax'] = tokens[2][:-1]
+                else:
                     solver_info['root_relax'] = float(tokens[3][:-1])
             elif line.startswith('H'):
                 last_h_line = line
-            # elif line.startswith('Optimize a model with'):
-            #     tokens = line.split()
-            #     solver_info['initial_constraints'] = int(tokens[4])
-            #     solver_info['initial_variables'] = int(tokens[6])
-            # elif line.startswith('Presolved:'):
-            #     tokens = line.split()
-            #     solver_info['presolved_constraints'] = int(tokens[1])
-            #     solver_info['presolved_variables'] = int(tokens[3])
+            elif line.startswith('Optimize a model with'):
+                tokens = line.split()
+                solver_info['initial_constraints'] = int(tokens[4])
+                solver_info['initial_variables'] = int(tokens[6])
+            elif line.startswith('Presolved:'):
+                tokens = line.split()
+                solver_info['presolved_constraints'] = int(tokens[1])
+                solver_info['presolved_variables'] = int(tokens[3])
         if last_h_line is not None:
             tokens = last_h_line.split('%')
             solver_info['best_sol_time'] = float(tokens[1].split()[-1][:-1])
 
-    # solver_info['timestamp'] = datetime.now().strftime('%a_%d_%m_%Y_%H_%M_%S'),
-    # solver_info['termination_condition'] = str(model_results.solver.termination_condition),
-    # solver_info['objective_function_value'] = objective_value,
-    # solver_info['status'] = str(model_results.solver.status),
+    solver_info['objective_function_value'] = objective_value,
+    solver_info['solver_status'] = str(model_results.solver.status),
     solver_info['status'] = str(model_results.solver.termination_condition),
     solver_info['time'] = float(model_results.solver.time),
     solver_info['gap_ratio'] = gap,
@@ -168,6 +170,12 @@ def get_solver_info(model_results, model_name, log_file_path):
     solver_info['upper_bound'] = upper_bound if upper_bound <= 1e9 else 'infinity',
     solver_info['gap'] = upper_bound - lower_bound,
     solver_info['model'] = model_name
+
+    if 'root_relax' not in solver_info or solver_info['root_relax'] == 'cutoff':
+        solver_info['root_relax'] = solver_info['objective_function_value']
+    
+    if 'best_sol_time' not in solver_info:
+        solver_info['best_sol_time'] = -1
 
     if type(solver_info['time']) is not float:
         solver_info['time'] = float(solver_info['time'][0])
@@ -181,8 +189,12 @@ def get_solver_info(model_results, model_name, log_file_path):
         solver_info['gap'] = float(solver_info['gap'][0])
     if type(solver_info['status']) is not str:
         solver_info['status'] = str(solver_info['status'][0])
-    if type(solver_info['root_relax']) is list:
+    if type(solver_info['root_relax']) in [list, tuple]:
         solver_info['root_relax'] = float(solver_info['root_relax'][0])
+    if type(solver_info['objective_function_value']) in [list, tuple]:
+        solver_info['objective_function_value'] = float(solver_info['objective_function_value'][0])
+    if type(solver_info['solver_status']) in [list, tuple]:
+        solver_info['solver_status'] = str(solver_info['solver_status'][0])
     
     solver_info['best_obj_ratio_root_relax'] = solver_info['lower_bound'] / solver_info['root_relax']
 
@@ -226,6 +238,11 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
     total_start_time = time.perf_counter()
 
     max_possible_master_requests = get_max_possible_master_requests(master_instance)
+
+    # Matrice di caching delle soluzioni dei sottoproblemi passate. Indicizzata
+    # sulle righe da (patient, service) e sulle colonne da (day, iteration)
+    if 'use_solution_permutation' in config and config['use_solution_permutation']:
+        prev_solution_matrix = {}
 
     if config['expand_core_days']:
         expanded_days = compute_expanded_days(master_instance)
@@ -289,6 +306,8 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         master_model.solutions.store_to(master_model_results)
         master_info = get_solver_info(master_model_results, config['master_config']['model'], master_log_file_path)
 
+        master_info['master_external_solving_time'] = master_solving_end_time - master_solving_start_time
+
         master_info_file_path = iteration_logs_directory_path.joinpath(f'master_info.json')
         with open(master_info_file_path, 'w') as file:
             json.dump(master_info, file, indent=4)
@@ -309,6 +328,70 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
                 check_master_results(master_instance, master_results)
             except Exception as exception:
                 print(exception)
+
+        # Controllo della presenza di una combinazione di soluzioni precedenti
+        # che soddisfi delle richieste di valore pari al master
+        if 'use_solution_permutation' in config and config['use_solution_permutation'] and iteration_index > 1:
+            
+            print(f'[iter {iteration_index}] Searching for a permutation of previous solutions')
+
+            master_results_value = get_master_results_value(master_instance, master_results)
+            
+            sol_perm_model = get_sol_perm_model(master_instance, prev_solution_matrix)
+            
+            opt = pyo.SolverFactory(config['master_config']['solver'])
+            sol_perm_start_time = time.perf_counter()
+            opt.solve(sol_perm_model, tee=False)
+            sol_perm_end_time = time.perf_counter()
+
+            sol_perm_solution_value = pyo.value(sol_perm_model.objective_function)
+            sol_perm_info = {
+                'sol_perm_external_solving_time': sol_perm_end_time - sol_perm_start_time,
+                'sol_perm_objective_function_value': sol_perm_solution_value,
+                'sol_perm_difference_between_master': master_results_value - sol_perm_solution_value,
+                'best_solution_value_so_far': best_final_results_value
+            }
+
+            with open(iteration_logs_directory_path.joinpath('sol_perm_info.json'), 'w') as file:
+                json.dump(sol_perm_info, file, indent=4)
+
+            # Per avere la soluzione ottima è necessario che il valore sia
+            # uguale a quello del master
+            if sol_perm_solution_value < master_results_value:
+                print(f'[iter {iteration_index}] Permutation not found ({sol_perm_solution_value} value, {master_results_value - sol_perm_solution_value} slots less than master, {best_final_results_value} is best subproblems so far).')
+            else:
+                print(f'[iter {iteration_index}] [STOP] Found a possible permutation of previous solution. Stopping the iterations.')
+                
+                sol_perm_results = get_results_from_sol_perm_model(sol_perm_model)
+
+                # Leggi i risultati dei sottoproblemi dei giorni selezionati
+                all_subproblem_results = {}
+                for day_name, i in sol_perm_results.items():
+                    subproblem_results_file_path = results_directory_path.joinpath(f'iter_{i}').joinpath(f'subproblem_day_{day_name}_results.json')
+                    with open(subproblem_results_file_path, 'r') as file:
+                        all_subproblem_results[day_name] = json.load(file)
+                
+                # Componi assieme le soluzioni dei sottoproblemi
+                # Rimozione di eventuali schedulazioni doppie e finestre risolte
+                final_results = get_fixed_final_results(master_instance, all_subproblem_results)
+
+                # Salvataggio file con i risultati
+                final_results_file_path = iteration_results_directory_path.joinpath('final_results.json')
+                with open(final_results_file_path, 'w') as file:
+                    json.dump(final_results, file, indent=4)
+                with open(best_final_results_file_path, 'w') as file:
+                    json.dump(final_results, file, indent=4)
+                
+                if config['checks_throw_exceptions']:
+                    check_final_results(master_instance, final_results)
+                else:
+                    try:
+                        check_final_results(master_instance, final_results)
+                    except Exception as exception:
+                        print(exception)
+
+                # Soluzione ottima raggiunta
+                break
 
         all_subproblem_results = {}
         for day_name in master_results['scheduled'].keys():
@@ -363,6 +446,9 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             subproblem_model.solutions.store_to(subproblem_model_results)
             subproblem_info = get_solver_info(subproblem_model_results, config['subproblem_config']['model'], subproblem_log_file_path)
 
+            subproblem_info['subproblem_model_creation_time'] = subproblem_model_creation_end_time - subproblem_model_creation_start_time
+            subproblem_info['subproblem_external_solving_time'] = subproblem_solving_end_time - subproblem_solving_start_time
+
             subproblem_info_file_path = iteration_logs_directory_path.joinpath(f'subproblem_info_day_{day_name}.json')
             with open(subproblem_info_file_path, 'w') as file:
                 json.dump(subproblem_info, file, indent=4)
@@ -406,11 +492,54 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
             except Exception as exception:
                 print(exception)
 
+        # Ogni giorno risolto può diventare una nuova colonna della matrice di
+        # cache
+        if 'use_solution_permutation' in config and config['use_solution_permutation']:
+            for day_name, day_results in all_subproblem_results.items():
+
+                # Se i servizi accettati della soluzione del giorno corrente
+                # sono uguali a quelli di soluzioni passate (dello stesso giorno
+                # in iterazioni 0..iteration_index) allora si può evitare di
+                # aggiungere questa nuova soluzione
+                is_exactly_equal = True
+                for other_iteration_index in range(iteration_index):
+                    column_to_check = (day_name, other_iteration_index)
+                    
+                    # Controllo sull'esistenza di una soluzione identica a
+                    # quella corrente
+                    for schedule in day_results['scheduled']:
+                        
+                        p = schedule['patient']
+                        s = schedule['service']
+
+                        if (p, s) not in prev_solution_matrix:
+                            is_exactly_equal = False
+                            break
+                        
+                        if column_to_check not in prev_solution_matrix[p, s]:
+                            is_exactly_equal = False
+                            break
+                    if is_exactly_equal:
+                        break
+                if is_exactly_equal:
+                    continue
+                
+                # Se la soluzione non è già presente, aggiungila come colonna
+                # della matrice
+                for schedule in day_results['scheduled']:
+                    p = schedule['patient']
+                    s = schedule['service']
+                    if (p, s) not in prev_solution_matrix:
+                        prev_solution_matrix[p, s] = []
+                    prev_solution_matrix[p, s].append((int(day_name), iteration_index))
+
+        # Elenco dei giorni con almeno una richiesta non soddisfatta
         days_not_completely_solved = []
         for day_name, day_results in all_subproblem_results.items():
             if len(day_results['rejected']) > 0:
                 days_not_completely_solved.append(day_name)
         
+        # Se tutti i giorni sono completamente risolti termina le iterazioni
         if len(days_not_completely_solved) == 0:
             print(f'[iter {iteration_index}] [STOP] All days are solved: exiting iteration cycle.') 
             break

@@ -536,6 +536,25 @@ def analyze_subproblem_results(instance, results):
     return data
 
 
+def analyze_cores(instance, results, cores):
+    return {}
+
+
+def write_excel_sheet(data: dict[str, list], writer:pd.ExcelWriter, sheet_name: str, labels_order: list[str]=None):
+    '''Funzione che aggiunge un foglio Excel con i dati forniti'''
+
+    df = pd.DataFrame(data)
+    if labels_order is not None:
+        df = df.reindex(labels_order, axis=1)
+    df.to_excel(writer, sheet_name=sheet_name, index=False, na_rep='NaN')
+
+    # Sistema la larghezza delle colonne
+    for column_name, column in df.items():
+        column_length = max(column.astype(str).map(len).max(), len(column_name))
+        col_idx = df.columns.get_loc(column_name)
+        writer.sheets[sheet_name].set_column(col_idx, col_idx, column_length)
+
+
 # Questo programma può essere chiamato solo dalla linea di comando
 if __name__ != '__main__':
     exit(0)
@@ -569,20 +588,20 @@ if not analysis_directory_path.exists():
     analysis_directory_path.mkdir()
     print(f'\'analysis\' does not exist, creating it.')
 
-# iterative_infos = {
-#     'master_input_infos': [],
-#     'subproblem_input_infos': [],
-#     'master_results_infos': [],
-#     'subproblem_results_infos': [],
-#     'final_results_infos': [],
-#     'cores_infos': []
-# }
-
 single_pass_master_analysis = {
     'instance': []
 }
 single_pass_subproblem_analysis = {
     'instance': []
+}
+aggregated_iterative_analysis = {
+    'instance': [],
+    'iteration': []
+}
+aggregated_iterative_subproblem_analysis = {
+    'instance': [],
+    'iteration': [],
+    'day': []
 }
 
 multiple_keys = set()
@@ -606,27 +625,256 @@ for group_directory_path in results_directory_path.iterdir():
     print(f'Reading results data in directory \'{group_name}\'')
     total_group_number += 1
 
-    # Se sono presenti i core i risultati sono di un test iterativo
+    # Se sono presenti i core, i risultati sono di un test iterativo
     cores_group_directory_path = group_directory_path.joinpath('cores')
     is_iterative_results = cores_group_directory_path.exists()
 
-    # Conrtolli sulle cartelle dei risultati del gruppo corrente
+    # Controlli sulle cartelle dei risultati del gruppo corrente
     input_group_directory_path = group_directory_path.joinpath('input')
-    if not input_group_directory_path.exists():
-        print(f'Directory \'input\' of group \'{group_name}\' does not exists, skipping group.')
-        continue
-    
     results_group_directory_path = group_directory_path.joinpath('results')
-    if not results_group_directory_path.exists():
-        print(f'Directory \'results\' of group \'{group_name}\' does not exists, skipping group.')
-        continue
-    
     logs_group_directory_path = group_directory_path.joinpath('logs')
-    if not logs_group_directory_path.exists():
-        print(f'Directory \'logs\' of group \'{group_name}\' does not exists, skipping group.')
+
+    # Ignora il gruppo se una qualche cartella non è presente
+    skip_group = False
+    for path in [input_group_directory_path, results_group_directory_path, logs_group_directory_path]:
+        if not path.exists():
+            print(f'Directory \'{path}\' does not exists, skipping group.')
+            skip_group = True
+            break
+    if skip_group:
         continue
+
+    if is_iterative_results:
+
+        master_instance_file_path = None
+        for file_path in input_group_directory_path.iterdir():
+            if file_path.suffix == '.json':
+                master_instance_file_path = file_path
+                break
+        with open(master_instance_file_path, 'r') as file:
+            master_instance = json.load(file)
+
+        instance_name = '_'.join(group_name.split('_')[-2:])
+
+        iterative_analysis = {
+            'instance': [],
+            'iteration': []
+        }
+        iterative_subproblem_analysis = {
+            'instance': [],
+            'iteration': [],
+            'day': []
+        }
+
+        iteration_number = 0
+        subproblem_number = 0
+
+        for iteration_input_directory_path in input_group_directory_path.iterdir():
+            if not iteration_input_directory_path.is_dir():
+                continue
+
+            iteration_number += 1
+
+            iteration_index = int(iteration_input_directory_path.name.removeprefix('iter_'))
+            iteration_directory_name = iteration_input_directory_path.name
+
+            iteration_results_directory_path = results_group_directory_path.joinpath(iteration_directory_name)
+            iteration_logs_directory_path = logs_group_directory_path.joinpath(iteration_directory_name)
+
+            # Controlli sull'esistenza delle cartelle relative all'iterazione corrente
+            if not iteration_results_directory_path.exists():
+                print(f'Results directory of instance \'{iteration_results_directory_path}\' does not exists, skipping it.')
+                continue
+            if not iteration_logs_directory_path.exists():
+                print(f'Logs directory of instance \'{iteration_logs_directory_path}\' does not exists, skipping it.')
+                continue
+            
+            master_results_file_path = iteration_results_directory_path.joinpath('master_results.json')
+            final_results_file_path = iteration_results_directory_path.joinpath('final_results.json')
+            cores_file_path = cores_group_directory_path.joinpath(f'iter_{iteration_index}_cores.json')
+            master_solver_info_file_path = iteration_logs_directory_path.joinpath('master_info.json')
+            core_info_file_path = iteration_logs_directory_path.joinpath('core_info.json')
+
+            # Controlli sull'esistenza dei file relativi all'iterazione corrente
+            if not master_results_file_path.exists():
+                print(f'File \'{master_results_file_path}\' does not exists, skipping it.')
+                continue
+            if not final_results_file_path.exists():
+                print(f'File \'{final_results_file_path}\' does not exists, skipping it.')
+                continue
+            if not cores_file_path.exists():
+                print(f'File \'{cores_file_path}\' does not exists, skipping it.')
+                continue
+            if not master_solver_info_file_path.exists():
+                print(f'File \'{master_solver_info_file_path}\' does not exists, skipping it.')
+                continue
+            if not core_info_file_path.exists():
+                print(f'File \'{core_info_file_path}\' does not exists, skipping it.')
+                continue
+
+            # Lettura dei dati
+            with open(master_results_file_path, 'r') as file:
+                master_results = json.load(file)
+            with open(final_results_file_path, 'r') as file:
+                final_results = json.load(file)
+            with open(cores_file_path, 'r') as file:
+                cores = json.load(file)
+            with open(master_solver_info_file_path, 'r') as file:
+                master_solver_info = json.load(file)
+            with open(core_info_file_path, 'r') as file:
+                core_info = json.load(file)
+
+            iterative_analysis['instance'].append(f'{instance_name}')
+            iterative_analysis['iteration'].append(iteration_index)
+            aggregated_iterative_analysis['instance'].append(f'{instance_name}')
+            aggregated_iterative_analysis['iteration'].append(iteration_index)
+
+            input_analysis = analyze_master_instance(master_instance)
+            for k, v in input_analysis.items():
+                if k not in iterative_analysis:
+                    iterative_analysis[k] = []
+                if len(iterative_analysis[k]) != len(iterative_analysis['instance']) - 1:
+                    multiple_keys.add(k)
+                else:
+                    iterative_analysis[k].append(v)
+                    if k not in aggregated_iterative_analysis:
+                        aggregated_iterative_analysis[k] = []
+                    aggregated_iterative_analysis[k].append(v)
+            
+            results_analysis = analyze_master_results(master_instance, master_results)
+            for k, v in results_analysis.items():
+                if k not in iterative_analysis:
+                    iterative_analysis[k] = []
+                if len(iterative_analysis[k]) != len(iterative_analysis['instance']) - 1:
+                    multiple_keys.add(k)
+                else:
+                    iterative_analysis[k].append(v)
+                    if k not in aggregated_iterative_analysis:
+                        aggregated_iterative_analysis[k] = []
+                    aggregated_iterative_analysis[k].append(v)
+            
+            cores_analysis = analyze_cores(master_instance, master_results, cores)
+            for k, v in cores_analysis.items():
+                if k not in iterative_analysis:
+                    iterative_analysis[k] = []
+                if len(iterative_analysis[k]) != len(iterative_analysis['instance']) - 1:
+                    multiple_keys.add(k)
+                else:
+                    iterative_analysis[k].append(v)
+                    if k not in aggregated_iterative_analysis:
+                        aggregated_iterative_analysis[k] = []
+                    aggregated_iterative_analysis[k].append(v)
+            
+            for k, v in master_solver_info.items():
+                if k not in iterative_analysis:
+                    iterative_analysis[k] = []
+                if len(iterative_analysis[k]) != len(iterative_analysis['instance']) - 1:
+                    multiple_keys.add(k)
+                else:
+                    iterative_analysis[k].append(v)
+                    if k not in aggregated_iterative_analysis:
+                        aggregated_iterative_analysis[k] = []
+                    aggregated_iterative_analysis[k].append(v)
+            
+            for k, v in core_info.items():
+                if k not in iterative_analysis:
+                    iterative_analysis[k] = []
+                if len(iterative_analysis[k]) != len(iterative_analysis['instance']) - 1:
+                    multiple_keys.add(k)
+                else:
+                    iterative_analysis[k].append(v)
+                    if k not in aggregated_iterative_analysis:
+                        aggregated_iterative_analysis[k] = []
+                    aggregated_iterative_analysis[k].append(v)
+
+            if len(multiple_keys) > 0:
+                print(f'Multiple keys found in master iterative: {multiple_keys}.')
+                multiple_keys = set()
+
+            # Iterazione dei sottoproblemi
+            for subproblem_instance_file_path in iteration_input_directory_path.iterdir():
+                if subproblem_instance_file_path.suffix != '.json':
+                    continue
+
+                day_index = int(subproblem_instance_file_path.stem.split('_')[-1])
+                subproblem_number += 1
+                
+                subproblem_results_file_path = iteration_results_directory_path.joinpath(f'subproblem_day_{day_index}_results.json')
+                subproblem_info_file_path = iteration_logs_directory_path.joinpath(f'subproblem_info_day_{day_index}.json')
+
+                # Controlli sull'esistenza dei file relativi al sottobproblema corrente
+                if not subproblem_results_file_path.exists():
+                    print(f'File \'{subproblem_results_file_path}\' does not exists, skipping it.')
+                    continue
+                if not subproblem_info_file_path.exists():
+                    print(f'File \'{subproblem_info_file_path}\' does not exists, skipping it.')
+                    continue
+
+                # Lettura dei dati
+                with open(subproblem_instance_file_path, 'r') as file:
+                    subproblem_instance = json.load(file)
+                with open(subproblem_results_file_path, 'r') as file:
+                    subproblem_results = json.load(file)
+                with open(subproblem_info_file_path, 'r') as file:
+                    subproblem_info = json.load(file)
+                
+                iterative_subproblem_analysis['instance'].append(f'{instance_name}')
+                iterative_subproblem_analysis['iteration'].append(iteration_index)
+                iterative_subproblem_analysis['day'].append(day_index)
+                aggregated_iterative_subproblem_analysis['instance'].append(f'{instance_name}')
+                aggregated_iterative_subproblem_analysis['iteration'].append(iteration_index)
+                aggregated_iterative_subproblem_analysis['day'].append(day_index)
+
+                input_analysis = analyze_subproblem_instance(subproblem_instance)
+                for k, v in input_analysis.items():
+                    if k not in iterative_subproblem_analysis:
+                        iterative_subproblem_analysis[k] = []
+                    if len(iterative_subproblem_analysis[k]) != subproblem_number - 1:
+                        multiple_keys.add(k)
+                    else:
+                        iterative_subproblem_analysis[k].append(v)
+                        if k not in aggregated_iterative_subproblem_analysis:
+                            aggregated_iterative_subproblem_analysis[k] = []
+                        aggregated_iterative_subproblem_analysis[k].append(v)
+                
+                results_analysis = analyze_subproblem_results(subproblem_instance, subproblem_results)
+                for k, v in results_analysis.items():
+                    if k not in iterative_subproblem_analysis:
+                        iterative_subproblem_analysis[k] = []
+                    if len(iterative_subproblem_analysis[k]) != subproblem_number - 1:
+                        multiple_keys.add(k)
+                    else:
+                        iterative_subproblem_analysis[k].append(v)
+                        if k not in aggregated_iterative_subproblem_analysis:
+                            aggregated_iterative_subproblem_analysis[k] = []
+                        aggregated_iterative_subproblem_analysis[k].append(v)
+                
+                for k, v in subproblem_info.items():
+                    if k not in iterative_subproblem_analysis:
+                        iterative_subproblem_analysis[k] = []
+                    if len(iterative_subproblem_analysis[k]) != subproblem_number - 1:
+                        multiple_keys.add(k)
+                    else:
+                        iterative_subproblem_analysis[k].append(v)
+                        if k not in aggregated_iterative_subproblem_analysis:
+                            aggregated_iterative_subproblem_analysis[k] = []
+                        aggregated_iterative_subproblem_analysis[k].append(v)
+                
+                if len(multiple_keys) > 0:
+                    print(f'Multiple keys found in subproblem iterative: {multiple_keys}.')
+                    multiple_keys = set()
+
+        # Eventuale salvataggio dei file di analisi ############################
+
+        data_file_path = analysis_directory_path.joinpath(f'{instance_name}_iterative_analysis.xlsx')
+        with pd.ExcelWriter(data_file_path, engine='xlsxwriter') as writer:
+            if len(iterative_analysis) > 2:
+                write_excel_sheet(iterative_analysis, writer, 'Iteration Data')
+        
+            if len(iterative_subproblem_analysis) > 3:
+                write_excel_sheet(iterative_subproblem_analysis, writer, 'Subproblem Data')
     
-    if not is_iterative_results:
+    else:
 
         for instance_file_path in input_group_directory_path.iterdir():
             if instance_file_path.suffix != '.json':
@@ -653,6 +901,9 @@ for group_directory_path in results_directory_path.iterdir():
                 results = json.load(file)
             with open(info_file_path, 'r') as file:
                 solver_info = json.load(file)
+            
+            if 'best_sol_time' not in solver_info:
+                solver_info['best_sol_time'] = -1
             
             is_master_instance = 'days' in instance
 
@@ -712,6 +963,11 @@ for group_directory_path in results_directory_path.iterdir():
                         single_pass_subproblem_analysis[k].append(v)
                 
                 for k, v in solver_info.items():
+                    if k not in [
+                        'explored_nodes', 'root_relax', 'best_obj_ratio_root_relax',
+                        'status', 'time', 'gap_ratio', 'lower_bound', 'upper_bound',
+                        'gap', 'model', 'best_sol_time']:
+                        continue
                     if k not in single_pass_subproblem_analysis:
                         single_pass_subproblem_analysis[k] = []
                     if len(single_pass_subproblem_analysis[k]) != total_instance_number - 1:
@@ -721,6 +977,7 @@ for group_directory_path in results_directory_path.iterdir():
                 
                 true_group_name = group_name.split('-')[-1][3:]
                 single_pass_subproblem_analysis['instance'][-1] += f'_{true_group_name}'
+                single_pass_subproblem_analysis['model'][-1] = true_group_name
 
 print(f'Read data from {total_instance_number} instances in {total_group_number} groups.')
 
@@ -729,57 +986,65 @@ if len(multiple_keys) > 0:
 
 # Eventuale salvataggio dei file di analisi ####################################
 
-if len(single_pass_master_analysis) > 1:
-    df = pd.DataFrame(single_pass_master_analysis)
-    data_file_path = analysis_directory_path.joinpath('single_pass_master_analysis.xlsx')
-    df.to_excel(data_file_path)
+if len(single_pass_master_analysis) > 1 or len(single_pass_subproblem_analysis) > 1:
 
-if len(single_pass_subproblem_analysis) > 1:
-    df = pd.DataFrame(single_pass_subproblem_analysis)
+    data_file_path = analysis_directory_path.joinpath('single_pass_analysis.xlsx')
+    with pd.ExcelWriter(data_file_path, engine='xlsxwriter') as writer:
 
-    # Riordinamento colonne
-    df = df.reindex([
-        'instance', 'avg_tasks_per_patient', 'machines', 'care_units',
-        'overlap', 'model', 'status', 'time', 'gap_ratio', 'explored_nodes',
-        'best_sol_time', 'rejected', 'served', 'served_task_ratio',
-        'lower_bound', 'upper_bound', 'gap', 'best_obj_ratio_dur',
-        'best_obj_ratio_root_relax', 'root_relax', 'total_average_duration',
-        'total_resources', 'total_capacity', 'average_duration_ratio', 'tasks',
-        'avg_services_per_patient', 'total_duration',
-        'avg_total_duration_per_patient', 'jobs'], axis=1)
+        if len(single_pass_master_analysis) > 1:
+            write_excel_sheet(single_pass_master_analysis, writer, 'Master Data')
+        
+        if len(single_pass_subproblem_analysis) > 1:
+            write_excel_sheet(single_pass_subproblem_analysis, writer, 'Subproblem Data', labels_order=[
+            'instance', 'avg_tasks_per_patient', 'machines', 'care_units',
+            'overlap', 'model', 'status', 'time', 'gap_ratio', 'explored_nodes',
+            'best_sol_time', 'rejected', 'served', 'served_task_ratio',
+            'lower_bound', 'upper_bound', 'gap', 'best_obj_ratio_dur',
+            'best_obj_ratio_root_relax', 'root_relax', 'total_average_duration',
+            'total_resources', 'total_capacity', 'average_duration_ratio', 'tasks',
+            'avg_services_per_patient', 'total_duration',
+            'avg_total_duration_per_patient', 'jobs'])
+    
+if len(aggregated_iterative_analysis) > 2 or len(aggregated_iterative_subproblem_analysis) > 3:
 
-    # Scrittura file Excel
-    data_file_path = analysis_directory_path.joinpath('single_pass_subproblem_analysis.xlsx')
+    data_file_path = analysis_directory_path.joinpath('aggregated_iterative_analysis.xlsx')
+    with pd.ExcelWriter(data_file_path, engine='xlsxwriter') as writer:
 
-    writer = pd.ExcelWriter(data_file_path, engine='xlsxwriter') 
-    df.to_excel(writer, sheet_name='Instance Data', index=False, na_rep='NaN')
+        if len(aggregated_iterative_analysis) > 1:
+            write_excel_sheet(aggregated_iterative_analysis, writer, 'Master Data')
+        
+        if len(aggregated_iterative_subproblem_analysis) > 1:
+            write_excel_sheet(aggregated_iterative_subproblem_analysis, writer, 'Subproblem Data')
+        
+        
+        
+        
+        # workbook  = writer.book
+        # worksheet = writer.sheets['Instance Data']
 
-    workbook  = writer.book
-    worksheet = writer.sheets['Instance Data']
+        # header_format = workbook.add_format({'bold': True, 'align': 'center', 'border': True})
+        # first_part = workbook.add_format({'bg_color': '#fff2cc'})
+        # second_part = workbook.add_format({'bg_color': '#d9ead3'})
+        # third_part = workbook.add_format({'bg_color': '#d0e0e3'})
+        # line1 = workbook.add_format({'bg_color': '#fff2cc', 'right': True})
+        # line2 = workbook.add_format({'bg_color': '#d9ead3', 'right': True})
 
-    header_format = workbook.add_format({'bold': True, 'align': 'center', 'border': True})
-    first_part = workbook.add_format({'bg_color': '#fff2cc'})
-    second_part = workbook.add_format({'bg_color': '#d9ead3'})
-    third_part = workbook.add_format({'bg_color': '#d0e0e3'})
-    line1 = workbook.add_format({'bg_color': '#fff2cc', 'right': True})
-    line2 = workbook.add_format({'bg_color': '#d9ead3', 'right': True})
+        # for column in df:
+        #     column_length = max(df[column].astype(str).map(len).max(), len(column))
+        #     col_idx = df.columns.get_loc(column)
+        #     if col_idx == 0:
+        #         writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, header_format)
+        #     elif col_idx < 5:
+        #         writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, first_part)
+        #     elif col_idx == 5:
+        #         writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, line1)
+        #     elif col_idx < 19:
+        #         writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, second_part)
+        #     elif col_idx == 19:
+        #         writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, line2)
+        #     elif col_idx <= 28:
+        #         writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, third_part)
+        #     else:
+        #         writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length)
 
-    for column in df:
-        column_length = max(df[column].astype(str).map(len).max(), len(column))
-        col_idx = df.columns.get_loc(column)
-        if col_idx == 0:
-            writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, header_format)
-        elif col_idx < 5:
-            writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, first_part)
-        elif col_idx == 5:
-            writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, line1)
-        elif col_idx < 19:
-            writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, second_part)
-        elif col_idx == 19:
-            writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, line2)
-        elif col_idx <= 28:
-            writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length, third_part)
-        else:
-            writer.sheets['Instance Data'].set_column(col_idx, col_idx, column_length)
-
-    writer.close()
+        # writer.close()

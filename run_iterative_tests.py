@@ -16,11 +16,13 @@ parser = argparse.ArgumentParser(prog='Run iterative tests', description='Solve 
 parser.add_argument('-c', '--config', type=Path, help='Solving configuration', required=True)
 parser.add_argument('-i', '--input', type=Path, help='Directory with instance groups.', required=True)
 parser.add_argument('-o', '--output', type=Path, help='Directory where outputting results.', required=True)
+parser.add_argument('--only-describe', action='store_true', help='Only show what would be done.')
 args = parser.parse_args()
 
 config_file_path = Path(args.config).resolve()
 input_directory_path = Path(args.input).resolve()
 output_directory_path = Path(args.output).resolve()
+only_describe = bool(args.only_describe)
 
 # Controlli sulla validità degli argomenti da linea di comando
 if not config_file_path.exists():
@@ -35,7 +37,7 @@ if output_directory_path.suffix != '':
     raise FileNotFoundError(f'Path \'{output_directory_path}\' is not a directory.')
 
 # Eventuale creazione della cartella di output
-if not output_directory_path.exists():
+if not only_describe and not output_directory_path.exists():
     output_directory_path.mkdir()
     print(f'Created output directory {output_directory_path}.')
 
@@ -63,10 +65,10 @@ for config_name, config_changes in configs['groups'].items():
             config[config_changes_key] = config_changes_value
     
     # Controllo sulla validita fat/slim
-    if config['master_model']['model'] in ['fat-master'] and config['subproblem_model']['model'] not in ['slim-subproblem']:
+    if config['master_config']['model'] in ['fat-master'] and config['subproblem_config']['model'] not in ['slim-subproblem']:
         print(f'WARNING: in \'{config_name}\' the master is fat, the subproblem is not slim. Ignoring this configuration.')
         continue
-    if config['master_model']['model'] in ['slim-master'] and config['subproblem_model']['model'] not in ['fat-subproblem']:
+    if config['master_config']['model'] in ['slim-master'] and config['subproblem_config']['model'] not in ['fat-subproblem']:
         print(f'WARNING: in \'{config_name}\' the master is slim, the subproblem is not fat. Ignoring this configuration.')
         continue
 
@@ -104,7 +106,10 @@ for config_name, config_changes in configs['groups'].items():
 
     total_instance_number += total_group_instance_number
 
-print(f'{total_instance_number} total instances will be solved (some may be the same but with different configurations).')
+print(f'SUMMARY: {total_instance_number} total instances will be solved (some may be the same but with different configurations).')
+
+if only_describe:
+    exit(0)
 
 print('---')
 
@@ -120,9 +125,9 @@ for config_name, config_changes in configs['groups'].items():
             config[config_changes_key] = config_changes_value
     
     # Controllo sulla validita fat/slim
-    if config['master_model']['model'] in ['fat-master'] and config['subproblem_model']['model'] not in ['slim-subproblem']:
+    if config['master_config']['model'] in ['fat-master'] and config['subproblem_config']['model'] not in ['slim-subproblem']:
         continue
-    if config['master_model']['model'] in ['slim-master'] and config['subproblem_model']['model'] not in ['fat-subproblem']:
+    if config['master_config']['model'] in ['slim-master'] and config['subproblem_config']['model'] not in ['fat-subproblem']:
         continue
 
     # Risolvi i gruppi di istanze
@@ -154,9 +159,9 @@ for config_name, config_changes in configs['groups'].items():
             print(f'Solving instance \'{master_instance_file_path.stem}\' of group \'{group_directory_path.name}\' with configuration \'{config_name}\'.')
 
             # Risoluzione
-            try:
-                solve_instance(master_instance, new_group_directory_path, config)
-            except Exception as e:
-                print(f'An error occurred: {e}')
+            # try:
+            solve_instance(master_instance, new_group_directory_path, config)
+            # except Exception as e:
+            #     print(f'An error occurred: {e}')
 
             print(f'End of instance \'{master_instance_file_path.stem}\' of group \'{group_directory_path.name}\' with configuration \'{config_name}\'.')

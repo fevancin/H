@@ -13,12 +13,12 @@ base:
 
   # Tipologia di modello da risolvere ('monolithic', 'fat-master',
   # 'slim-master', 'fat-subproblem' o 'slim-subproblem'). Le versioni 'fat'
-  # hanno al loro interno la'assegnazione dell'operatore
-  model: 'fat-subproblem'
+  # hanno al loro interno l'assegnazione dell'operatore
+  model: 'monolithic'
   
   solver_config:
     solver: 'gurobi'
-    time_limit: 600
+    time_limit: 3600
     max_memory: 16
 
   additional_info:
@@ -33,9 +33,13 @@ base:
 groups:
 
   # Test sul modello monilitico
-  # monolithic:
-  #   groups_to_do: ['small_master_group']
-  #   model: 'monolithic'
+  monolithic:
+    groups_to_do: ['small_master_group']
+    model: 'monolithic'
+    additional_info:
+    - 'minimize_hospital_accesses'
+    - 'use_redundant_patient_cut'
+    - 'use_redundant_operator_cut'
 
 
   # Test su istanze del master
@@ -53,12 +57,12 @@ groups:
   #   groups_to_do: ['small_subproblem_slim_group']
   #   model: 'slim-subproblem'
     
-  general_precedence:
-    groups_to_do: ['all']
-    model: 'fat-subproblem'
+  # general_precedence:
+  #   groups_to_do: ['all']
+  #   model: 'fat-subproblem'
   
-  general_precedence-chain:
-    groups_to_do: ['all']
-    model: 'fat-subproblem'
-    additional_info:
-    - 'use_redundant_operator_cut'
+  # general_precedence-chain:
+  #   groups_to_do: ['all']
+  #   model: 'fat-subproblem'
+  #   additional_info:
+  #   - 'use_redundant_operator_cut'

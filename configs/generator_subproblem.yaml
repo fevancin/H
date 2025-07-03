@@ -4,27 +4,27 @@
 # - {min, max}
 # - {min, max, mode}
 base:
-    instance_number: 10 # numero di istanze nel gruppo
-    seed: 100 # seme per la generazione pseudocasuale
+  instance_number: 10 # numero di istanze nel gruppo
+  seed: 100 # seme per la generazione pseudocasuale
 
-    care_unit_number: 4 # numero di unità di cura
-    operator_number: 2 # numero di operatori in ogni unità di cura
-    time_slots: 16 # unità di tempo in cui gli operatori sono attivi
+  care_unit_number: 4 # numero di unità di cura
+  operator_number: 2 # numero di operatori in ogni unità di cura
+  time_slots: 16 # unità di tempo in cui gli operatori sono attivi
 
-    patient_number: 32 # numero atteso di pazienti (può essere di poco minore)
+  patient_number: 32 # numero atteso di pazienti (può essere di poco minore)
 
-    service_duration: {'min': 2, 'max': 12, 'mode': 3} # durata delle richieste
+  service_duration: {'min': 2, 'max': 12, 'mode': 3} # durata delle richieste
 
-    operator_pre_chosen: false
+  operator_pre_chosen: false
 
 # Ogni elemento in questo oggetto corrisponde ad un differente gruppo di istanze
 # che condivideranno la medesima configurazione. Ciò che compare viene aggiunto
 # o sovrascritto ogni volta a copie della configurazione di base
 groups:
 
-    sub_32pat:
-        patient_number: 32
-    sub_16pat:
-        patient_number: 16
-    sub_8pat:
-        patient_number: 8
+  sub_32pat:
+    patient_number: 32
+  sub_16pat:
+    patient_number: 16
+  sub_8pat:
+    patient_number: 8

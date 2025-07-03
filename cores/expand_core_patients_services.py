@@ -19,6 +19,7 @@ def get_max_possible_master_requests(master_instance):
                         max_requests[day_index] = set()
                     max_requests[day_index].add((patient_name, service_name))
     
+    # Trasforma i set in dict
     max_requests = {str(day_index): list({'patient': r[0], 'service': r[1]} for r in requests) for day_index, requests in max_requests.items()}
     
     return max_requests
