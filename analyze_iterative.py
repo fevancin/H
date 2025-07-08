@@ -910,11 +910,11 @@ if 'plots' in config and ('all' in config['plots'] or 'time_slots' in config['pl
             ms = 2
         
         axs[0].plot(data['iteration'], data['total_scheduled_service_duration'], 'go', linewidth=lw, markersize=ms, label='scheduled')
-        axs[0].plot(data['iteration'], data['total_time_slots'], '-', linewidth=lw, markersize=ms, label='total capacity')
-        axs[1].plot(data['iteration'], data['total_rejected_service_duration'], 'rx-', linewidth=lw, markersize=ms)
+        axs[0].plot(data['iteration'], data['total_time_slots'], 'o', linewidth=lw, markersize=ms, label='total capacity')
+        axs[1].plot(data['iteration'], data['total_rejected_service_duration'], 'rx', linewidth=lw, markersize=ms)
         gaxs[0].plot(data['iteration'], data['total_scheduled_service_duration'], 'go', linewidth=lw, markersize=ms, label=f'{group}_scheduled')
-        gaxs[0].plot(data['iteration'], data['total_time_slots'], '-', linewidth=lw, markersize=ms, label=f'{group}_total capacity')
-        gaxs[1].plot(data['iteration'], data['total_rejected_service_duration'], 'rx-', linewidth=lw, markersize=ms, label=group)
+        gaxs[0].plot(data['iteration'], data['total_time_slots'], 'o', linewidth=lw, markersize=ms, label=f'{group}_total capacity')
+        gaxs[1].plot(data['iteration'], data['total_rejected_service_duration'], 'rx', linewidth=lw, markersize=ms, label=group)
 
         axs[0].set_ylabel('Time slots')
         axs[0].set_title('Time slots requested')
@@ -941,6 +941,48 @@ if 'plots' in config and ('all' in config['plots'] or 'time_slots' in config['pl
 
 if 'plots' in config and ('all' in config['plots'] or 'solving_times' in config['plots']):
     print('Making solving_times...')
+    gfig, gax = plt.subplots()
+    for group, data in df.groupby('group'):
+        fig, ax = plt.subplots()
+
+        if len(data) > 100:
+            lw = 0.5
+            ms = 0.5
+            ax.set_xticks([])
+            ax.set_xticks([])
+            gax.set_xticks([])
+            gax.set_xticks([])
+        else:
+            lw = 1
+            ms = 2
+        
+        ax.plot(data['time'], data['total_scheduled_service_duration'].cumsum(), 'o', linewidth=lw, markersize=ms, label='master')
+        ax.plot(data['time'], data['final_total_scheduled_service_duration'], 'o', linewidth=lw, markersize=ms, label='best final')
+        gax.plot(data['time'], data['total_scheduled_service_duration'].cumsum(), 'o', linewidth=lw, markersize=ms, label=f'{group}_master')
+        gax.plot(data['time'], data['final_total_scheduled_service_duration'], 'o', linewidth=lw, markersize=ms, label=f'{group}_best final')
+
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Objective function value')
+        ax.set_title('Cumulated objective function value')
+        ax.legend()
+
+        fig.tight_layout()
+        fig.savefig(plots_directory_path.joinpath(f'{group}_solving_times.png'))
+
+    gax.set_xlabel('Time (s)')
+    gax.set_ylabel('Objective function value')
+    gax.set_title('Cumulated objective function value')
+    gax.legend()
+
+    gfig.tight_layout()
+    gfig.savefig(plots_directory_path.joinpath(f'solving_times.png'))
+    plt.close('all')
+
+
+
+
+
+
 def plot_subproblem_cumulative_times(all_master_results_info, all_subproblem_results_info, plot_file_path):
 
     time = 0
