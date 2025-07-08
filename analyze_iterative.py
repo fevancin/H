@@ -490,9 +490,6 @@ if len(iterative_analysis) == 0 and len(iterative_subproblem_analysis) == 0:
     raise ValueError('No data found to analyze.')
 print(f'Analyzed {len(iterative_analysis)} master entries, {len(iterative_subproblem_analysis)} subproblem entries.')
 
-df = pd.DataFrame(iterative_analysis)
-subproblem_df = pd.DataFrame(iterative_subproblem_analysis)
-
 # Assegna None per ogni chiave mancante in qualche riga
 key_names = set(key for row in iterative_analysis for key in row.keys())
 for row in iterative_analysis:
@@ -506,6 +503,9 @@ for row in iterative_subproblem_analysis:
     for key_name in key_names:
         if key_name not in row:
             row[key_name] = None
+
+df = pd.DataFrame(iterative_analysis)
+subproblem_df = pd.DataFrame(iterative_subproblem_analysis)
 
 # SALVATAGGIO EXCEL ############################################################
 
@@ -806,13 +806,13 @@ if 'plots' in config and ('all' in config['plots'] or 'model_components' in conf
             lw = 1
             ms = 2
         
-        ax.plot(data['iteration'], data['initial_constraints'], 'o-', linewidth=lw, markersize=ms, label='constraints')
+        ax.plot(data['iteration'], data['initial_constraints'], 'o', linewidth=lw, markersize=ms, label='constraints')
         ax.plot(data['iteration'], data['initial_variables'], 'x-', linewidth=lw, markersize=ms, label='variables')
-        ax.plot(data['iteration'], data['presolved_constraints'], 'o-', linewidth=lw, markersize=ms, label='presolved constraints')
+        ax.plot(data['iteration'], data['presolved_constraints'], 'o', linewidth=lw, markersize=ms, label='presolved constraints')
         ax.plot(data['iteration'], data['presolved_variables'], 'x-', linewidth=lw, markersize=ms, label='presolved variables')
-        gax.plot(data['iteration'], data['initial_constraints'], 'o-', linewidth=lw, markersize=ms, label=f'{group}_constraints')
+        gax.plot(data['iteration'], data['initial_constraints'], 'o', linewidth=lw, markersize=ms, label=f'{group}_constraints')
         gax.plot(data['iteration'], data['initial_variables'], 'x-', linewidth=lw, markersize=ms, label=f'{group}_variables')
-        gax.plot(data['iteration'], data['presolved_constraints'], 'o-', linewidth=lw, markersize=ms, label=f'{group}_presolved constraints')
+        gax.plot(data['iteration'], data['presolved_constraints'], 'o', linewidth=lw, markersize=ms, label=f'{group}_presolved constraints')
         gax.plot(data['iteration'], data['presolved_variables'], 'x-', linewidth=lw, markersize=ms, label=f'{group}_presolved variables')
         
         ax.set_xlabel('Iteration')
@@ -860,14 +860,14 @@ if 'plots' in config and ('all' in config['plots'] or 'patient_accesses' in conf
         if day_number > max_day_number:
             max_day_number = day_number
         
-        ax.plot(data['iteration'], data['avg_days_used_per_patient'], 'o-', linewidth=lw, markersize=ms, label='avg')
-        ax.plot(data['iteration'], data['min_days_used_per_patient'], 'o-', linewidth=lw, markersize=ms, label='min')
-        ax.plot(data['iteration'], data['max_days_used_per_patient'], 'o-', linewidth=lw, markersize=ms, label='max')
+        ax.plot(data['iteration'], data['avg_days_used_per_patient'], 'o', linewidth=lw, markersize=ms, label='avg')
+        ax.plot(data['iteration'], data['min_days_used_per_patient'], 'o', linewidth=lw, markersize=ms, label='min')
+        ax.plot(data['iteration'], data['max_days_used_per_patient'], 'o', linewidth=lw, markersize=ms, label='max')
         ax.plot([0, len(data) - 1], [day_number + 1, day_number + 1], 'r--')
         ax.text(0, day_number - 2, 'Day number', color='r')
-        gax.plot(data['iteration'], data['avg_days_used_per_patient'], 'o-', linewidth=lw, markersize=ms, label=f'{group}_avg')
-        gax.plot(data['iteration'], data['min_days_used_per_patient'], 'o-', linewidth=lw, markersize=ms, label=f'{group}_min')
-        gax.plot(data['iteration'], data['max_days_used_per_patient'], 'o-', linewidth=lw, markersize=ms, label=f'{group}_max')
+        gax.plot(data['iteration'], data['avg_days_used_per_patient'], 'o', linewidth=lw, markersize=ms, label=f'{group}_avg')
+        gax.plot(data['iteration'], data['min_days_used_per_patient'], 'o', linewidth=lw, markersize=ms, label=f'{group}_min')
+        gax.plot(data['iteration'], data['max_days_used_per_patient'], 'o', linewidth=lw, markersize=ms, label=f'{group}_max')
         
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Days used')
@@ -909,10 +909,10 @@ if 'plots' in config and ('all' in config['plots'] or 'time_slots' in config['pl
             lw = 1
             ms = 2
         
-        axs[0].plot(data['iteration'], data['total_scheduled_service_duration'], 'go-', linewidth=lw, markersize=ms, label='scheduled')
+        axs[0].plot(data['iteration'], data['total_scheduled_service_duration'], 'go', linewidth=lw, markersize=ms, label='scheduled')
         axs[0].plot(data['iteration'], data['total_time_slots'], '-', linewidth=lw, markersize=ms, label='total capacity')
         axs[1].plot(data['iteration'], data['total_rejected_service_duration'], 'rx-', linewidth=lw, markersize=ms)
-        gaxs[0].plot(data['iteration'], data['total_scheduled_service_duration'], 'go-', linewidth=lw, markersize=ms, label=f'{group}_scheduled')
+        gaxs[0].plot(data['iteration'], data['total_scheduled_service_duration'], 'go', linewidth=lw, markersize=ms, label=f'{group}_scheduled')
         gaxs[0].plot(data['iteration'], data['total_time_slots'], '-', linewidth=lw, markersize=ms, label=f'{group}_total capacity')
         gaxs[1].plot(data['iteration'], data['total_rejected_service_duration'], 'rx-', linewidth=lw, markersize=ms, label=group)
 
@@ -968,7 +968,7 @@ def plot_subproblem_cumulative_times(all_master_results_info, all_subproblem_res
 
     _, ax = plt.subplots()
     
-    ax.plot(xmas, ymas, 'o-', label='master')
+    ax.plot(xmas, ymas, 'o', label='master')
     if len(xsub) > 0:
         ax.plot(xsub, ysub, 'x-', label='subproblem')
         ax.set_xlim(xmin=0, xmax=(xsub[-1] + 0.5))
