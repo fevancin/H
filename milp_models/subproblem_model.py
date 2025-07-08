@@ -117,6 +117,15 @@ def get_fat_subproblem_model(instance, additional_info):
 
     # VINCOLI ##################################################################
 
+    # Vincoli che forzano 'time' ad essere un valore positivo se e solo se
+    # 'satisfy' è maggiore di zero
+    @model.Constraint(model.satisfy_index)
+    def link_satisfy_to_time_variables(model, p, s):
+        return model.satisfy[p, s] <= model.time[p, s]
+    @model.Constraint(model.satisfy_index)
+    def link_time_to_satisfy_variables(model, p, s):
+        return model.time[p, s] <= model.satisfy[p, s] * get_time_bounds(model, p, s)[1]
+
     # Se una richiesta viene soddisfatta, viene assegnata una volta sola
     @model.Constraint(model.satisfy_index)
     def link_satisfy_to_do_variables(model, p, s):

@@ -3,6 +3,19 @@
 groups_to_do: ['all']
 groups_to_avoid: [] # Elenco dei gruppi di istanze da non risolvere
 
+save_excel: true
+
 # Elenco dei grafici da realizzare (inserisci nella lista 'all' per disegnare
 # tutti i grafici)
-plots: ['all']
+plots: [
+  # 'average_requests_per_patient',
+  # 'core_number_by_day',
+  # 'core_expansion',
+  # 'fully_scheduled_days',
+  # 'likeness_between_iterations',
+  # 'model_components',
+  # 'patient_accesses',
+  # 'time_slots',
+  # 'solving_times'
+  'all'
+]

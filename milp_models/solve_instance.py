@@ -2,7 +2,6 @@ from pathlib import Path
 import json
 import time
 import yaml
-import shutil
 import pyomo.environ as pyo
 
 from checkers.master_instance_checker import check_master_instance
@@ -145,6 +144,8 @@ def get_solver_info(model_results, model_name, log_file_path):
                 tokens = line.split()
                 if tokens[2].startswith('cutoff'):
                     solver_info['root_relax'] = tokens[2][:-1]
+                elif tokens[2].startswith('memory') or tokens[3].startswith('limit'):
+                    solver_info['root_relax'] = 10000
                 else:
                     solver_info['root_relax'] = float(tokens[3][:-1])
             elif line.startswith('H'):
@@ -211,9 +212,7 @@ def solve_instance(master_instance, output_directory_path: Path, config: dict):
         except Exception as exception:
             print(exception)
     
-    if output_directory_path.exists():
-        shutil.rmtree(output_directory_path)
-    output_directory_path.mkdir()
+    output_directory_path.mkdir(exist_ok=True)
 
     input_directory_path = output_directory_path.joinpath('input')
     input_directory_path.mkdir()

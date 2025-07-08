@@ -18,7 +18,6 @@ def get_sol_perm_model(master_instance, prev_solution_matrix: dict[tuple[str, st
     # (day, iteration)
     do_index = set()
 
-
     for day_iter_list in prev_solution_matrix.values():
         do_index.update(day_iter_list)
     model.do_index = pyo.Set(initialize=sorted(do_index))

@@ -540,6 +540,28 @@ def analyze_cores(instance, results, cores):
     return {}
 
 
+def analyze_final_results(instance, results):
+
+    total_scheduled_service_duration = 0
+    true_function_value = 0
+    for day in results['scheduled'].values():
+        for request in day:
+
+            patient_name = request['patient']
+            service_name = request['service']
+
+            patient_priority = instance['patients'][patient_name]['priority']
+            service_duration = instance['services'][service_name]['duration']
+
+            total_scheduled_service_duration += service_duration
+            true_function_value += service_duration * patient_priority
+    
+    return {
+        'total_scheduled_service_duration': total_scheduled_service_duration,
+        'true_function_value': true_function_value
+    }
+
+
 def write_excel_sheet(data: dict[str, list], writer:pd.ExcelWriter, sheet_name: str, labels_order: list[str]=None):
     '''Funzione che aggiunge un foglio Excel con i dati forniti'''
 
@@ -592,6 +614,9 @@ single_pass_master_analysis = {
     'instance': []
 }
 single_pass_subproblem_analysis = {
+    'instance': []
+}
+single_pass_monolithic_analysis = {
     'instance': []
 }
 aggregated_iterative_analysis = {
@@ -907,9 +932,47 @@ for group_directory_path in results_directory_path.iterdir():
             
             is_master_instance = 'days' in instance
 
+            is_monolithic_results = False
+            if (type(results['scheduled']) is dict
+                and len(results['scheduled']) > 0
+                and len(results['scheduled'][next(iter(results['scheduled']))]) > 0
+                and 'time' in results['scheduled'][next(iter(results['scheduled']))][0]):
+                is_monolithic_results = True
+
             # Salvataggio sottoforma di singolo oggetto
-            if is_master_instance:
+            if is_monolithic_results:
+                single_pass_monolithic_analysis['instance'].append(f'{instance_name}')
+
+                input_analysis = analyze_master_instance(instance)
+                for k, v in input_analysis.items():
+                    if k not in single_pass_monolithic_analysis:
+                        single_pass_monolithic_analysis[k] = []
+                    if len(single_pass_monolithic_analysis[k]) != total_instance_number - 1:
+                        multiple_keys.add(k)
+                    else:
+                        single_pass_monolithic_analysis[k].append(v)
                 
+                results_analysis = analyze_final_results(instance, results)
+                for k, v in results_analysis.items():
+                    if k not in single_pass_monolithic_analysis:
+                        single_pass_monolithic_analysis[k] = []
+                    if len(single_pass_monolithic_analysis[k]) != total_instance_number - 1:
+                        multiple_keys.add(k)
+                    else:
+                        single_pass_monolithic_analysis[k].append(v)
+                
+                for k, v in solver_info.items():
+                    if k not in single_pass_monolithic_analysis:
+                        single_pass_monolithic_analysis[k] = []
+                    if len(single_pass_monolithic_analysis[k]) != total_instance_number - 1:
+                        multiple_keys.add(k)
+                    else:
+                        if type(v) is list:
+                            single_pass_monolithic_analysis[k].append(v[0])
+                        else:
+                            single_pass_monolithic_analysis[k].append(v)
+
+            elif is_master_instance:
                 single_pass_master_analysis['instance'].append(f'{instance_name}')
                 
                 input_analysis = analyze_master_instance(instance)
@@ -986,7 +1049,7 @@ if len(multiple_keys) > 0:
 
 # Eventuale salvataggio dei file di analisi ####################################
 
-if len(single_pass_master_analysis) > 1 or len(single_pass_subproblem_analysis) > 1:
+if len(single_pass_master_analysis) > 1 or len(single_pass_subproblem_analysis) > 1 or len(single_pass_monolithic_analysis) > 1:
 
     data_file_path = analysis_directory_path.joinpath('single_pass_analysis.xlsx')
     with pd.ExcelWriter(data_file_path, engine='xlsxwriter') as writer:
@@ -1004,6 +1067,9 @@ if len(single_pass_master_analysis) > 1 or len(single_pass_subproblem_analysis) 
             'total_resources', 'total_capacity', 'average_duration_ratio', 'tasks',
             'avg_services_per_patient', 'total_duration',
             'avg_total_duration_per_patient', 'jobs'])
+        
+        if len(single_pass_monolithic_analysis) > 1:
+            write_excel_sheet(single_pass_monolithic_analysis, writer, 'Monolithic Data')
     
 if len(aggregated_iterative_analysis) > 2 or len(aggregated_iterative_subproblem_analysis) > 3:
 

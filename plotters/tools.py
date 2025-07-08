@@ -9,7 +9,7 @@ from matplotlib.patches import Patch
 
 def plot_master_results(instance, results, plot_file_path):
 
-    fig, (ax1, ax2) = plt.subplots(2, 1)
+    fig, ax1 = plt.subplots()
     fig.set_size_inches(16, 8)
 
     slot_width = 2.0

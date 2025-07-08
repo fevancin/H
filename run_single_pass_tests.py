@@ -3,7 +3,6 @@ from pathlib import Path
 import json
 import time
 import yaml
-import shutil
 import pyomo.environ as pyo
 import jsbeautifier
 import argparse
@@ -33,11 +32,13 @@ parser = argparse.ArgumentParser(prog='Run single-pass tests', description='Solv
 parser.add_argument('-c', '--config', type=Path, help='Solving configuration', required=True)
 parser.add_argument('-i', '--input', type=Path, help='Directory with instance groups.', required=True)
 parser.add_argument('-o', '--output', type=Path, help='Directory where outputting results.', required=True)
+parser.add_argument('--only-describe', action='store_true', help='Only show what would be done.')
 args = parser.parse_args()
 
 configs_file_path = Path(args.config).resolve()
 groups_input_directory_path = Path(args.input).resolve()
 output_directory_path = Path(args.output).resolve()
+only_describe = bool(args.only_describe)
 
 # Controlli sulla validità degli argomenti da linea di comando
 if not configs_file_path.exists():
@@ -67,7 +68,7 @@ print('---')
 # Controlli iniziali sul numero di istanze e gruppi coinvolti (aiutano a
 # verificare che non ci siano errori nella configurazione)
 if len(configs['groups']) == 0:
-    print('WARNiNG: the configuration does not have anything in the \'groups\' object.')
+    raise ValueError('WARNING: the configuration does not have anything in the \'groups\' object.')
 for config_name, config_changes in configs['groups'].items():
 
     # Copia della configurazione di base con sovrascrittura del gruppo corrente
@@ -99,6 +100,10 @@ for config_name, config_changes in configs['groups'].items():
         group_number += 1
         group_names.append(group_name)
 
+        group_directory_path = output_directory_path.joinpath(f'{group_name}_{config_name}')
+        if group_directory_path.exists():
+            raise FileExistsError(f'Directory \'{group_directory_path}\' already exists.')
+
         # Conta del numero di istanze nel gruppo
         for input_instance_file_path in group_input_directory_path.iterdir():
             if input_instance_file_path.suffix != '.json':
@@ -106,13 +111,20 @@ for config_name, config_changes in configs['groups'].items():
             total_config_instance_number += 1
     
     if group_number == 0:
-        print(f'WARNING: the configuration \'{config_name}\' does not have any valid instance groups.')
+        raise FileNotFoundError(f'WARNING: the configuration \'{config_name}\' does not have any valid instance groups.')
     else:
         group_names_string = ', '.join(group_names)
         print(f'The configuration \'{config_name}\' will be applied to {group_number} instance groups: [{group_names_string}].')
         print(f'{total_config_instance_number} total instance number will be solved by configuration \'{config_name}\'.')
 
     total_instance_number += total_config_instance_number
+
+
+print(f'SUMMARY: {total_instance_number} total instances will be solved (some may be the same but with different configurations).')
+
+if only_describe:
+    exit(0)
+
 
 print('---')
 
@@ -147,8 +159,6 @@ for config_name, config_changes in configs['groups'].items():
 
         # Creazione delle cartelle necessarie alla risoluzione
         group_directory_path = output_directory_path.joinpath(f'{group_name}_{config_name}')
-        if group_directory_path.exists():
-            shutil.rmtree(group_directory_path)
         group_directory_path.mkdir()
 
         input_directory_path = group_directory_path.joinpath('input')

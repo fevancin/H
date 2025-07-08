@@ -7,7 +7,7 @@ base:
   groups_to_avoid: [] # Elenco dei gruppi di istanze da non risolvere
 
   # Numero di iterazioni dopo il quale la computazione viene fermata
-  max_iteration_number: 10000
+  max_iteration_number: 100
 
   # Se dopo una iterazione il master tiene in memoria i valori delle variabili
   # della soluzione precedente
@@ -61,87 +61,104 @@ base:
 # della configurazione di base.
 groups:
 
-  # Test sul tipo di core con permutazione delle soluzioni
-  generalist_no_exp:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    core_type: 'generalist'
-    use_solution_permutation: true
+  # # Test sul tipo di core con permutazione delle soluzioni
+  # generalist_no_exp:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   core_type: 'generalist'
+  #   use_solution_permutation: true
   
-  basic_no_exp:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    core_type: 'basic'
-    use_solution_permutation: true
+  # basic_no_exp:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   core_type: 'basic'
+  #   use_solution_permutation: true
   
-  reduced_no_exp:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    core_type: 'reduced'
-    use_solution_permutation: true
-  
-
-  # Test sul tipo di espansione con permutazione delle soluzioni
-  reduced_with_exp_ps:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    expand_core_patients: true
-    expand_core_services: true
-    use_solution_permutation: true
-  
-  reduced_with_exp_psd:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    expand_core_days: true
-    expand_core_patients: true
-    expand_core_services: true
-    use_solution_permutation: true
-
-
-  # Test sul tipo di core senza permutazione delle soluzioni
-  generalist_no_exp:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    core_type: 'generalist'
-  
-  basic_no_exp:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    core_type: 'basic'
-  
-  reduced_no_exp:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    core_type: 'reduced'
-  
-  
-  # Test sul tipo di espansione senza permutazione delle soluzioni
-  reduced_with_exp_ps:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    expand_core_patients: true
-    expand_core_services: true
-  
-  reduced_with_exp_psd:
-    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
-    expand_core_days: true
-    expand_core_patients: true
-    expand_core_services: true
+  # reduced_no_exp:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   core_type: 'reduced'
+  #   use_solution_permutation: true
   
 
-  # Test sulla presenza dei vincoli di ottimalità
-  generalist_no_exp_opt_constr:
-    groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
-    core_type: 'generalist'
-    additional_master_info:
-    - 'use_optimality_constraints'
+  # # Test sul tipo di espansione con permutazione delle soluzioni
+  # reduced_with_exp_ps:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   expand_core_patients: true
+  #   expand_core_services: true
+  #   use_solution_permutation: true
   
-  basic_no_exp_opt_constr:
-    groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
-    core_type: 'basic'
-    additional_master_info:
-    - 'use_optimality_constraints'
+  # reduced_with_exp_psd:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   expand_core_days: true
+  #   expand_core_patients: true
+  #   expand_core_services: true
+  #   use_solution_permutation: true
+
+
+  # # Test sul tipo di core senza permutazione delle soluzioni
+  # generalist_no_exp:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   core_type: 'generalist'
   
-  reduced_no_exp_opt_constr:
-    groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
-    core_type: 'reduced'
-    additional_master_info:
-    - 'use_optimality_constraints'
+  # basic_no_exp:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   core_type: 'basic'
+  
+  # reduced_no_exp:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   core_type: 'reduced'
+  
+  
+  # # Test sul tipo di espansione senza permutazione delle soluzioni
+  # reduced_with_exp_ps:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   expand_core_patients: true
+  #   expand_core_services: true
+  
+  # reduced_with_exp_psd:
+  #   groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+  #   expand_core_days: true
+  #   expand_core_patients: true
+  #   expand_core_services: true
+  
+
+  # # Test sulla presenza dei vincoli di ottimalità
+  # generalist_no_exp_opt_constr:
+  #   groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
+  #   core_type: 'generalist'
+  #   additional_master_info:
+  #   - 'use_optimality_constraints'
+  
+  # basic_no_exp_opt_constr:
+  #   groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
+  #   core_type: 'basic'
+  #   additional_master_info:
+  #   - 'use_optimality_constraints'
+  
+  # reduced_no_exp_opt_constr:
+  #   groups_to_do: ['32pat_2cu_4op', '64pat_2cu_4op']
+  #   core_type: 'reduced'
+  #   additional_master_info:
+  #   - 'use_optimality_constraints'
 
   # small_solving:
-  #   groups_to_do: ['all']
-  #   core_type: 'generalist'
+  #   groups_to_do: ['32pat_2cu_4op']
+
+  strongest_solver:
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+    core_type: 'reduced'
+    expand_core_patients: true
+    expand_core_services: true
+    use_solution_permutation: true
+    additional_master_info:
+    - 'use_optimality_constraints'
+  
+  strongest_but_no_perm:
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
+    core_type: 'reduced'
+    expand_core_patients: true
+    expand_core_services: true
+    use_solution_permutation: false
+    additional_master_info:
+    - 'use_optimality_constraints'
 
 # '128pat_4cu_2op',
 # '32pat_1cu_8op', '32pat_2cu_4op', '32pat_4cu_2op', '32pat_8cu_1op',

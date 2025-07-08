@@ -34,7 +34,7 @@ groups:
 
   # Test sul modello monilitico
   monolithic:
-    groups_to_do: ['small_master_group']
+    groups_to_do: ['32pat_4cu_2op', '64pat_4cu_2op']
     model: 'monolithic'
     additional_info:
     - 'minimize_hospital_accesses'

@@ -53,7 +53,7 @@ print('---')
 # Controlli iniziali sul numero di istanze e gruppi coinvolti (aiutano a
 # verificare che non ci siano errori nella configurazione)
 if len(configs['groups']) == 0:
-    print('WARNiNG: the configuration does not have anything in the \'groups\' object.')
+    raise ValueError('WARNING: the configuration does not have anything in the \'groups\' object.')
 for config_name, config_changes in configs['groups'].items():
 
     # Copia della configurazione di base con sovrascrittura del gruppo corrente
@@ -91,14 +91,26 @@ for config_name, config_changes in configs['groups'].items():
         group_number += 1
         group_names.append(group_name)
 
+        instance_number = 0
+
         # Conta del numero di istanze nel gruppo
-        for input_instance_file_path in group_input_directory_path.iterdir():
-            if input_instance_file_path.suffix != '.json':
+        for master_instance_file_path in group_input_directory_path.iterdir():
+            if master_instance_file_path.suffix != '.json':
                 continue
-            total_group_instance_number += 1
+            
+            instance_number += 1
+            
+            group_directory_path = output_directory_path.joinpath(f'{group_name}_{config_name}_{master_instance_file_path.stem}')
+            if group_directory_path.exists():
+                raise FileExistsError(f'Directory \'{group_directory_path}\' already exists.')
+        
+        if instance_number == 0:
+            raise FileNotFoundError(f'Group \'{group_name}\' does not have any instances.')
+        
+        total_group_instance_number += instance_number
     
     if group_number == 0:
-        print(f'WARNING: the configuration \'{config_name}\' does not have any valid instance groups.')
+        raise FileNotFoundError(f'WARNING: the configuration \'{config_name}\' does not have any valid instance groups.')
     else:
         group_names_string = ', '.join(group_names)
         print(f'The configuration \'{config_name}\' will be applied to {group_number} instance groups: [{group_names_string}].')
